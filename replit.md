@@ -1,6 +1,6 @@
-# [Project name]
+# TimeApp
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+TimeApp is a German-language mobile employee time tracking prototype for companies in Germany.
 
 ## Run & Operate
 
@@ -22,23 +22,29 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/timeapp` — Expo mobile app with the login and employee time clock experience.
+- `artifacts/timeapp/app/index.tsx` — single-route prototype UI and local clock behavior.
+- `artifacts/timeapp/constants/colors.ts` — TimeApp brand and semantic color tokens.
+- `artifacts/timeapp/assets/images/timeapp-icon.png` — generated app icon.
+- `artifacts/api-server` — shared Express API scaffold; not required by the first frontend-only prototype.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The first prototype is frontend-only and uses AsyncStorage for local clock persistence; no backend or database is needed yet.
+- The app intentionally uses one focused Expo Router screen rather than tabs because employees primarily need fast clock-in and clock-out actions.
+- Login is a prototype flow with local validation and a sample employee identity; production authentication should be added before release.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Employees can sign in in German, see their name and the live date/time, start or end their workday, and view today's recorded hours and progress toward an eight-hour target.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- The first prototype should not include payment or subscription features.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The current login and time tracking behavior is intentionally local prototype behavior and is not a secure authentication implementation.
 
 ## Pointers
 

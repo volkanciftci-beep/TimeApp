@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "TimeApp",
+    "slug": "timeapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/timeapp-icon.png",
+    "scheme": "timeapp",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {},
+    "web": {
+      "favicon": "./assets/images/timeapp-icon.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
