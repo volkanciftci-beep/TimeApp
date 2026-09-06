@@ -1,0 +1,118 @@
+TIMEAPP'i gerçek bir personel çalışma zamanı uygulamasına dönüştür.
+
+Mevcut tasarımı ve mobil görünümü koru. Uygulama Almanca olsun ve iPhone'da çok iyi çalışsın.
+
+Şu özellikleri ekle:
+
+1. ÇALIŞAN GİRİŞİ
+- E-posta veya Mitarbeiter-ID ile giriş
+- Şifre ile giriş
+- Passwort vergessen özelliği
+- Demo/test kullanıcıları oluşturabil
+- Güvenli oturum sistemi kullan.
+
+2. ANA PERSONEL EKRANI
+Giriş yaptıktan sonra:
+- Guten Morgen / Guten Tag + çalışan adı
+- Bugünün tarihi
+- Aktif çalışma durumu
+- Büyük dijital saat
+- Bugünkü toplam çalışma süresi
+
+3. İŞE BAŞLA
+- "ARBEIT STARTEN" butonu
+- Basıldığında çalışma başlangıç saatini kaydet
+- Durum "Im Dienst" olarak değişsin
+- Sayaç gerçek zamanlı çalışsın.
+
+4. İŞİ BİTİR
+- "ARBEIT BEENDEN" butonu
+- Bitiş saatini kaydet
+- Toplam çalışma süresini hesapla
+- Günlük kaydı veritabanına kaydet.
+
+5. MOLA SİSTEMİ
+- "PAUSE STARTEN"
+- "PAUSE BEENDEN"
+- Mola süresini çalışma süresinden düş
+- Gün içinde birden fazla mola destekle.
+
+6. ÇALIŞMA GEÇMİŞİ
+Bir "Arbeitszeit" veya "Verlauf" sayfası oluştur.
+Her gün:
+- Datum
+- Arbeitsbeginn
+- Arbeitsende
+- Pausenzeit
+- Netto-Arbeitszeit
+gösterilsin.
+
+7. HAFTALIK / AYLIK ÖZET
+- Diese Woche
+- Dieser Monat
+- Toplam çalışma saati
+- Toplam mola
+- Çalışılan gün sayısı
+- Günlük ortalama çalışma süresi
+
+8. SAATLİK ÜCRET VE MAAŞ HESABI
+Çalışanın saatlik ücretini kaydet.
+Örneğin 15 € / saat.
+- Günlük kazanç
+- Haftalık tahmini kazanç
+- Aylık tahmini kazanç
+hesapla.
+Brüt/net ayrımını açıkça belirt; net maaşı tahmin ederken vergi ve kesintilerin kesin olmadığını belirt.
+
+9. TAKVİM
+Çalışma günlerini takvim üzerinde göster.
+Bir güne tıklayınca o günün çalışma detayları açılsın.
+
+10. ADMIN PANELİ
+Admin kullanıcı:
+- Tüm çalışanları görebilsin
+- Çalışan ekleyebilsin
+- Çalışan silebilsin veya pasif yapabilsin
+- Saatlik ücret belirleyebilsin
+- Çalışanların günlük/haftalık/aylık çalışma sürelerini görebilsin
+- Çalışma kayıtlarını düzeltebilsin
+- Raporları görüntüleyebilsin.
+
+11. RAPOR
+Admin için:
+- Haftalık rapor
+- Aylık rapor
+- Çalışan bazında toplam saat
+- Toplam mola
+- Tahmini ücret
+göster.
+
+12. VERİTABANI
+Çalışanlar, çalışma kayıtları, molalar ve kullanıcı rolleri kalıcı olarak veritabanında saklansın.
+Sayfa yenilendiğinde bilgiler kaybolmasın.
+
+13. MOBİL / iPHONE
+- Responsive tasarım
+- iPhone safe-area desteği
+- Büyük ve kolay basılabilir butonlar
+- PWA olarak çalışmaya devam etsin
+- Ana ekrana eklendiğinde uygulama gibi açılsın
+- Mevcut TIMEAPP tasarımını koru.
+
+14. GÜVENLİK
+- Çalışanlar sadece kendi çalışma kayıtlarını görebilsin.
+- Admin tüm çalışanları görebilsin.
+- Şifreleri düz metin olarak saklama.
+- Yetkilendirme kontrolü ekle.
+
+15. ALMANCA ARAYÜZ
+Tüm kullanıcıya görünen metinler Almanca olsun.
+
+Önemli:
+Mevcut çalışan tasarımını bozma.
+Önce mevcut projeyi analiz et.
+Sonra özellikleri ekle.
+Her özelliği uyguladıktan sonra test et.
+Hata varsa kendin düzelt.
+Uygulamanın mevcut çalışan URL'sini ve PWA özelliklerini koru.
+Sonunda uygulamayı çalıştırıp mobil görünümü kontrol et.
