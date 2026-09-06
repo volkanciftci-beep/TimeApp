@@ -12,6 +12,11 @@
     },
     "android": {},
     "web": {
+      "name": "TIMEAPP",
+      "shortName": "TimeApp",
+      "lang": "de-DE",
+      "themeColor": "#102C3A",
+      "backgroundColor": "#F5F7F8",
       "favicon": "./assets/images/timeapp-icon.png"
     },
     "plugins": ["expo-router"],

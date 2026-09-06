@@ -26,6 +26,7 @@ TimeApp is a German-language mobile employee time tracking prototype for compani
 - `artifacts/timeapp/app/index.tsx` — single-route prototype UI and local clock behavior.
 - `artifacts/timeapp/constants/colors.ts` — TimeApp brand and semantic color tokens.
 - `artifacts/timeapp/assets/images/timeapp-icon.png` — generated app icon.
+- `artifacts/timeapp/public` — PWA manifest, service worker, iOS install metadata, and web icons.
 - `artifacts/api-server` — shared Express API scaffold; not required by the first frontend-only prototype.
 
 ## Architecture decisions
@@ -45,6 +46,7 @@ Employees can sign in in German, see their name and the live date/time, start or
 ## Gotchas
 
 - The current login and time tracking behavior is intentionally local prototype behavior and is not a secure authentication implementation.
+- The PWA service worker is scoped to the app path and uses a versioned cache so future web asset changes can invalidate the app shell.
 
 ## Pointers
 
