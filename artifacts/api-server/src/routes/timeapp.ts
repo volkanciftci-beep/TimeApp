@@ -688,6 +688,20 @@ router.post("/timeapp/billing/checkout", requireRoles("owner"), async (req, res)
     res.status(400).json({ error: "Eine Stripe-Preis-ID ist erforderlich." });
     return;
   }
+  const price = await db.execute(sql`
+    SELECT price.id, product.metadata
+    FROM stripe.prices price
+    JOIN stripe.products product ON product.id = price.product
+    WHERE price.id = ${priceId} AND price.active = true AND product.active = true
+    LIMIT 1
+  `);
+  if (price.rows.length === 0) {
+    res.status(400).json({ error: "Der gewählte Tarif ist nicht verfügbar." });
+    return;
+  }
+  const productMetadata = (price.rows[0] as { metadata?: { trial_days?: string } }).metadata;
+  const parsedTrialDays = Number.parseInt(productMetadata?.trial_days ?? "0", 10);
+  const trialDays = Number.isFinite(parsedTrialDays) ? Math.min(Math.max(parsedTrialDays, 0), 90) : 0;
   let customerId = membership.company.stripeCustomerId;
   if (!customerId) {
     const customer = await stripeService.createCustomer(await ownerEmail(membership.company.ownerUserId), membership.company.id);
@@ -701,6 +715,7 @@ router.post("/timeapp/billing/checkout", requireRoles("owner"), async (req, res)
     typeof req.body?.successUrl === "string" ? req.body.successUrl : `${baseUrl}/billing/success`,
     typeof req.body?.cancelUrl === "string" ? req.body.cancelUrl : `${baseUrl}/billing/cancel`,
     membership.company.id,
+    trialDays,
   );
   res.json({ url: session.url });
 });
