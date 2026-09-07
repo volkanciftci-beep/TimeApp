@@ -656,7 +656,10 @@ router.get("/timeapp/billing/plans", requireRoles("owner"), async (_req, res) =>
     SELECT p.id, p.name, p.description, pr.id AS price_id, pr.unit_amount, pr.currency, pr.recurring
     FROM stripe.products p
     INNER JOIN stripe.prices pr ON pr.product = p.id
-    WHERE p.active = true AND pr.active = true AND pr.type = 'recurring'
+    WHERE p.active = true
+      AND pr.active = true
+      AND pr.type = 'recurring'
+      AND p.metadata->>'product_key' = 'zeitapp_business'
     ORDER BY pr.unit_amount ASC
   `);
   res.json({

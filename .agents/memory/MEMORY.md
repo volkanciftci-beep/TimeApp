@@ -1,0 +1,1 @@
+- [Expo PWA base path](expo-pwa-base-path.md) — Path-based ZeitApp web exports need an explicit `/timeapp` route; `EXPO_BASE_URL` alone did not map Safari URLs.

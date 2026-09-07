@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth, useSignIn, useSignUp } from '@clerk/expo';
+import { useAuth, useClerk, useSignIn, useSignUp } from '@clerk/expo';
 import {
   getGetTimeAppHistoryQueryKey,
   getGetTimeAppMeQueryKey,
@@ -147,6 +147,7 @@ function IconInput({
 
 function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreated: () => void }) {
   const insets = useSafeAreaInsets();
+  const clerk = useClerk();
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
   const [identifier, setIdentifier] = useState('');
@@ -160,6 +161,7 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'employee' | 'owner-login' | 'owner-signup'>('employee');
   const [verificationSent, setVerificationSent] = useState(false);
+  const [loginVerificationSent, setLoginVerificationSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
@@ -202,12 +204,47 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
         if (signIn.status === 'complete') {
           await signIn.finalize({ navigate: () => undefined });
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else if (signIn.status === 'needs_client_trust') {
+          const currentSignIn = clerk.client.signIn;
+          const emailFactor = currentSignIn.supportedSecondFactors?.find(
+            (factor) => factor.strategy === 'email_code',
+          );
+          if (!emailFactor || !('emailAddressId' in emailFactor)) {
+            setError('Für dieses Konto ist keine E-Mail-Bestätigung verfügbar.');
+            return;
+          }
+          await currentSignIn.prepareSecondFactor({
+            strategy: 'email_code',
+            emailAddressId: emailFactor.emailAddressId,
+          });
+          setLoginVerificationSent(true);
         } else {
           setError('Für dieses Konto ist eine zusätzliche Bestätigung erforderlich.');
         }
       }
     } catch {
       setError('Die Anmeldung ist momentan nicht möglich. Bitte erneut versuchen.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await clerk.client.signIn.attemptSecondFactor({
+        strategy: 'email_code',
+        code: verificationCode,
+      });
+      if (result.status !== 'complete' || !result.createdSessionId) {
+        setError('Der Bestätigungscode ist nicht korrekt.');
+        return;
+      }
+      await clerk.setActive({ session: result.createdSessionId });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      setError('Der Bestätigungscode konnte nicht geprüft werden.');
     } finally {
       setLoading(false);
     }
@@ -312,7 +349,7 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
             onTogglePassword={() => setShowPassword((current) => !current)}
           />
 
-            {verificationSent ? (
+            {verificationSent || loginVerificationSent ? (
              <>
                <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 18 }]}>Bestätigungscode</Text>
                <IconInput
@@ -340,7 +377,7 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
             testID="timeapp-login"
             accessibilityRole="button"
             accessibilityLabel="Anmelden"
-             onPress={verificationSent ? verifySignup : submit}
+             onPress={verificationSent ? verifySignup : loginVerificationSent ? verifyLogin : submit}
              disabled={loading}
             style={({ pressed }) => [
               styles.loginButton,
@@ -348,9 +385,9 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
             ]}
           >
              <Text style={styles.loginButtonText}>
-                {verificationSent ? 'CODE BESTÄTIGEN' : mode === 'owner-signup' ? 'KONTO ERSTELLEN' : 'ANMELDEN'}
+                 {verificationSent || loginVerificationSent ? 'CODE BESTÄTIGEN' : mode === 'owner-signup' ? 'KONTO ERSTELLEN' : 'ANMELDEN'}
              </Text>
-             <Feather name={verificationSent ? 'check' : 'arrow-right'} size={19} color={colors.white} />
+              <Feather name={verificationSent || loginVerificationSent ? 'check' : 'arrow-right'} size={19} color={colors.white} />
           </Pressable>
         </View>
 
@@ -358,6 +395,7 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
             onPress={() => {
               setMode(mode === 'employee' ? 'owner-login' : 'employee');
              setVerificationSent(false);
+              setLoginVerificationSent(false);
              setError('');
            }}
            style={styles.authSwitch}
@@ -369,7 +407,7 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
               {mode === 'employee' ? 'Inhaber anmelden' : 'Mitarbeiter anmelden'}
            </Text>
          </Pressable>
-          {mode !== 'employee' ? <Pressable onPress={() => { setMode(mode === 'owner-login' ? 'owner-signup' : 'owner-login'); setError(''); }} style={styles.authSwitch}>
+          {mode !== 'employee' ? <Pressable onPress={() => { setMode(mode === 'owner-login' ? 'owner-signup' : 'owner-login'); setVerificationSent(false); setLoginVerificationSent(false); setError(''); }} style={styles.authSwitch}>
             <Text style={[styles.authSwitchText, { color: colors.mutedForeground }]}>{mode === 'owner-login' ? 'Neue Firma?' : 'Bereits Inhaber?'}</Text>
             <Text style={[styles.authSwitchLink, { color: colors.primary }]}>{mode === 'owner-login' ? ' Firmenkonto erstellen' : ' Anmelden'}</Text>
           </Pressable> : null}
@@ -650,7 +688,7 @@ function DashboardScreen({
           </Text>
         </View>
         </>}
-        {role === 'owner' || role === 'manager' ? <ManagementPanel role={role} colors={colors} /> : null}
+        {role === 'owner' || role === 'manager' ? <ManagementPanel role={role} colors={colors} hasActiveSubscription={hasActiveSubscription} /> : null}
       </KeyboardAwareScrollViewCompat>
     </View>
   );
@@ -688,7 +726,7 @@ function OwnerOnboarding({ colors, onComplete }: { colors: Palette; onComplete: 
   </KeyboardAwareScrollViewCompat>;
 }
 
-function ManagementPanel({ role, colors }: { role: 'owner' | 'manager'; colors: Palette }) {
+function ManagementPanel({ role, colors, hasActiveSubscription }: { role: 'owner' | 'manager'; colors: Palette; hasActiveSubscription: boolean }) {
   const queryClient = useQueryClient();
   const members = useGetTimeAppCompanyMembers({ query: { queryKey: getGetTimeAppCompanyMembersQueryKey() } });
   const reports = useGetTimeAppCompanyReports({ period: 'week' }, { query: { queryKey: getGetTimeAppCompanyReportsQueryKey({ period: 'week' }) } });
@@ -705,12 +743,58 @@ function ManagementPanel({ role, colors }: { role: 'owner' | 'manager'; colors: 
     void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyMembersQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyReportsQueryKey({ period: 'week' }) });
   };
-  const openUrl = (url: string | null) => {
+  const openUrl = async (url: string | null) => {
     if (!url) { Alert.alert('Nicht verfügbar', 'Es konnte keine Zahlungsseite erstellt werden.'); return; }
-    void Linking.openURL(url);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.assign(url);
+      return;
+    }
+    if (!(await Linking.canOpenURL(url))) {
+      Alert.alert('Nicht verfügbar', 'Die Zahlungsseite konnte nicht geöffnet werden.');
+      return;
+    }
+    await Linking.openURL(url);
   };
+  const browserReturnUrl = (result: 'success' | 'cancel') =>
+    Platform.OS === 'web' && typeof window !== 'undefined'
+      ? `${window.location.origin}/timeapp/?checkout=${result}`
+      : undefined;
+  const showBillingError = (error: unknown, fallback: string) => {
+    const data = (error as { data?: { error?: unknown } })?.data;
+    Alert.alert('Nicht möglich', typeof data?.error === 'string' ? data.error : fallback);
+  };
+  const startCheckout = (priceId: string) => {
+    checkout.mutate({
+      data: {
+        priceId,
+        successUrl: browserReturnUrl('success'),
+        cancelUrl: browserReturnUrl('cancel'),
+      },
+    }, {
+      onSuccess: (result) => void openUrl(result.url),
+      onError: (error) => showBillingError(error, 'Checkout konnte nicht gestartet werden.'),
+    });
+  };
+  const manageBilling = () => {
+    if (!hasActiveSubscription) {
+      const plan = plans.data?.plans?.[0];
+      if (!plan) {
+        Alert.alert('Tarif nicht verfügbar', 'Der ZeitApp Firmenabo-Tarif konnte nicht geladen werden. Bitte versuchen Sie es erneut.');
+        return;
+      }
+      startCheckout(plan.priceId);
+      return;
+    }
+    portal.mutate({
+      data: { returnUrl: browserReturnUrl('success') },
+    }, {
+      onSuccess: (result) => void openUrl(result.url),
+      onError: (error) => showBillingError(error, 'Kundenportal konnte nicht geöffnet werden.'),
+    });
+  };
+  const billingPending = checkout.isPending || portal.isPending;
   return <View style={styles.adminWrap}>
-    <View style={[styles.hoursCard, { backgroundColor: colors.surface, marginHorizontal: 0 }]}>
+    {hasActiveSubscription ? <View style={[styles.hoursCard, { backgroundColor: colors.surface, marginHorizontal: 0 }]}>
       <Text style={[styles.cardEyebrow, { color: colors.primary }]}>VERWALTUNG</Text>
       <Text style={[styles.hoursTitle, { color: colors.foreground }]}>Team & Berichte</Text>
       {members.isError || reports.isError ? <Text style={[styles.inlineError, { color: colors.danger }]}>Teamdaten konnten nicht geladen werden. Bitte aktualisieren Sie die Seite.</Text> : null}
@@ -731,13 +815,13 @@ function ManagementPanel({ role, colors }: { role: 'owner' | 'manager'; colors: 
       <Pressable onPress={() => createMember.mutate({ data: { displayName: name, email, role: role === 'owner' ? newRole : 'employee' } }, { onSuccess: (result) => { setName(''); setEmail(''); setNewRole('employee'); refresh(); Alert.alert('Zugang erstellt', `Firmen-Code: ${result.companyCode}\nMitarbeiter-ID: ${result.member.employeeId}\nTemporäres Passwort: ${result.temporaryPassword}`); }, onError: () => Alert.alert('Nicht möglich', 'Das Mitglied konnte nicht erstellt werden.') })} style={[styles.smallButton, { backgroundColor: colors.primary }]}><Text style={styles.loginButtonText}>MITGLIED HINZUFÜGEN</Text></Pressable>
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 20 }]}>WOCHENBERICHT</Text>
       {(reports.data?.reports ?? []).map((report) => <View key={report.userId} style={styles.memberRow}><Text style={[styles.historyDate, { color: colors.foreground }]}>{report.displayName}</Text><Text style={[styles.historyDuration, { color: colors.primary }]}>{formatDuration(report.totalWorkSeconds)}</Text></View>)}
-    </View>
+    </View> : null}
     {role === 'owner' ? <View style={[styles.hoursCard, { backgroundColor: colors.surface, marginHorizontal: 0 }]}>
       <Text style={[styles.cardEyebrow, { color: colors.primary }]}>ABRECHNUNG</Text>
       <Text style={[styles.hoursTitle, { color: colors.foreground }]}>Tarif & Zahlung</Text>
       {plans.isError ? <Text style={[styles.inlineError, { color: colors.danger }]}>Tarife konnten nicht geladen werden.</Text> : null}
-      {(plans.data?.plans ?? []).map((plan) => <Pressable key={plan.id} onPress={() => checkout.mutate({ data: { priceId: plan.priceId } }, { onSuccess: (result) => openUrl(result.url), onError: () => Alert.alert('Nicht möglich', 'Checkout konnte nicht gestartet werden.') })} style={[styles.planRow, { borderColor: colors.border }]}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{plan.name ?? 'ZEITAPP Tarif'}</Text><Text style={[styles.metaText, { color: colors.mutedForeground }]}>{plan.description ?? 'Monatlicher Tarif'}</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></Pressable>)}
-      <Pressable onPress={() => portal.mutate({}, { onSuccess: (result) => openUrl(result.url), onError: () => Alert.alert('Nicht möglich', 'Kundenportal konnte nicht geöffnet werden.') })} style={[styles.smallButton, { backgroundColor: colors.brandMid }]}><Text style={styles.loginButtonText}>ZAHLUNG VERWALTEN</Text></Pressable>
+      {(plans.data?.plans ?? []).map((plan) => <Pressable key={plan.id} disabled={billingPending} onPress={() => startCheckout(plan.priceId)} style={[styles.planRow, { borderColor: colors.border, opacity: billingPending ? 0.6 : 1 }]}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{plan.name ?? 'ZEITAPP Tarif'}</Text><Text style={[styles.metaText, { color: colors.mutedForeground }]}>{plan.description ?? 'Monatlicher Tarif'}</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></Pressable>)}
+      <Pressable testID="zeitapp-manage-billing" accessibilityRole="button" accessibilityLabel={hasActiveSubscription ? 'Zahlung verwalten' : 'Firmenabo starten'} disabled={billingPending || (!hasActiveSubscription && plans.isLoading)} onPress={manageBilling} style={({ pressed }) => [styles.smallButton, { backgroundColor: hasActiveSubscription ? colors.brandMid : colors.primary, opacity: billingPending || (!hasActiveSubscription && plans.isLoading) ? 0.6 : pressed ? 0.82 : 1 }]}><Text style={styles.loginButtonText}>{billingPending ? 'BITTE WARTEN …' : hasActiveSubscription ? 'ZAHLUNG VERWALTEN' : '14 TAGE KOSTENLOS TESTEN'}</Text></Pressable>
     </View> : null}
   </View>;
 }

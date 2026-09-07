@@ -24,6 +24,7 @@ export class StripeService {
       mode: "subscription",
       success_url: successUrl,
       cancel_url: cancelUrl,
+      client_reference_id: String(companyId),
       subscription_data: {
         metadata: { companyId: String(companyId) },
         ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),

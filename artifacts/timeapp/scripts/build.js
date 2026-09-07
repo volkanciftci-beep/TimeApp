@@ -22,7 +22,7 @@ function findWorkspaceRoot(startDir) {
 }
 
 const workspaceRoot = findWorkspaceRoot(projectRoot);
-const basePath = (process.env.BASE_PATH || '/').replace(/\/+$/, '');
+const basePath = (process.env.BASE_PATH || '/timeapp').replace(/\/+$/, '');
 
 function exitWithError(message) {
   console.error(message);
@@ -127,6 +127,49 @@ async function checkMetroHealth() {
 
 function getExpoPublicReplId() {
   return process.env.REPL_ID || process.env.EXPO_PUBLIC_REPL_ID;
+}
+
+async function exportWebApp(expoPublicDomain, expoPublicReplId) {
+  console.log('Exporting production web app...');
+  const outputDir = path.join(projectRoot, '.web-export');
+  fs.rmSync(outputDir, { recursive: true, force: true });
+
+  const env = {
+    ...process.env,
+    CI: '1',
+    EXPO_BASE_URL: basePath || '/',
+    EXPO_PUBLIC_DOMAIN: expoPublicDomain,
+    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY || '',
+    EXPO_PUBLIC_CLERK_PROXY_URL: process.env.CLERK_PROXY_URL
+      ? `https://${expoPublicDomain}${process.env.CLERK_PROXY_URL}`
+      : '',
+    EXPO_PUBLIC_REPL_ID: expoPublicReplId,
+  };
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(
+      'pnpm',
+      ['exec', 'expo', 'export', '--platform', 'web', '--output-dir', outputDir, '--clear'],
+      { cwd: projectRoot, env, stdio: 'inherit' },
+    );
+    child.once('error', reject);
+    child.once('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`Web export exited with code ${code}`));
+    });
+  });
+
+  fs.cpSync(outputDir, path.join(projectRoot, 'static-build'), { recursive: true });
+  const indexPath = path.join(projectRoot, 'static-build', 'index.html');
+  if (basePath) {
+    const html = fs
+      .readFileSync(indexPath, 'utf8')
+      .replaceAll('href="/', `href="${basePath}/`)
+      .replaceAll('src="/', `src="${basePath}/`);
+    fs.writeFileSync(indexPath, html);
+  }
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  console.log('Production web app ready');
 }
 
 async function startMetro(expoPublicDomain, expoPublicReplId) {
@@ -576,11 +619,14 @@ async function main() {
   console.log('Updating manifests and creating landing page...');
   updateManifests(manifests, timestamp, baseUrl, assetsByHash);
 
-  console.log('Build complete! Deploy to:', baseUrl);
-
   if (metroProcess) {
     metroProcess.kill();
+    metroProcess = null;
   }
+  await exportWebApp(domain, expoPublicReplId);
+
+  console.log('Build complete! Deploy to:', baseUrl);
+
   process.exit(0);
 }
 
