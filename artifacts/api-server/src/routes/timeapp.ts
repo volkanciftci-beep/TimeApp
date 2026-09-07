@@ -9,10 +9,13 @@ import type {
   CompanyReport,
 } from "@workspace/api-zod";
 import { stripeService } from "../stripeService";
+import {
+  isActiveSubscriptionStatus,
+  reconcileSubscriptionState,
+} from "../billingState";
 
 const router = Router();
 const TIME_ZONE = "Europe/Berlin";
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 const ROLE_ORDER = ["owner", "manager", "employee"] as const;
 type Role = (typeof ROLE_ORDER)[number];
 
@@ -58,18 +61,17 @@ async function membershipFromRequest(req: Parameters<RequestHandler>[0]) {
   const subscription = subscriptionResult.rows[0] as { id?: string; status?: string } | undefined;
   if (!subscription?.id || !subscription.status) return membership;
 
-  const subscriptionId = subscription?.id ?? null;
-  const subscriptionStatus = subscription?.status ?? "inactive";
+  const reconciledState = reconcileSubscriptionState(membership.company, subscription);
 
   if (
-    membership.company.stripeSubscriptionId !== subscriptionId ||
-    membership.company.subscriptionStatus !== subscriptionStatus
+    membership.company.stripeSubscriptionId !== reconciledState.stripeSubscriptionId ||
+    membership.company.subscriptionStatus !== reconciledState.subscriptionStatus
   ) {
     const [company] = await db
       .update(companies)
       .set({
-        stripeSubscriptionId: subscriptionId,
-        subscriptionStatus,
+        stripeSubscriptionId: reconciledState.stripeSubscriptionId,
+        subscriptionStatus: reconciledState.subscriptionStatus,
         updatedAt: new Date(),
       })
       .where(eq(companies.id, membership.company.id))
@@ -81,7 +83,7 @@ async function membershipFromRequest(req: Parameters<RequestHandler>[0]) {
 }
 
 function hasActiveSubscription(company: typeof companies.$inferSelect) {
-  return ACTIVE_SUBSCRIPTION_STATUSES.has(company.subscriptionStatus);
+  return isActiveSubscriptionStatus(company.subscriptionStatus);
 }
 
 const requireMembership: RequestHandler = async (req, res, next) => {

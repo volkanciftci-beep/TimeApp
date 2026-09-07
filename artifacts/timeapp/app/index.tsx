@@ -39,6 +39,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
+import { billingActionForSubscription } from '@/lib/billingAction';
 
 type Palette = ReturnType<typeof useColors>;
 
@@ -776,7 +777,7 @@ function ManagementPanel({ role, colors, hasActiveSubscription }: { role: 'owner
     });
   };
   const manageBilling = () => {
-    if (!hasActiveSubscription) {
+    if (billingActionForSubscription(hasActiveSubscription) === 'checkout') {
       const plan = plans.data?.plans?.[0];
       if (!plan) {
         Alert.alert('Tarif nicht verfügbar', 'Der ZeitApp Firmenabo-Tarif konnte nicht geladen werden. Bitte versuchen Sie es erneut.');
