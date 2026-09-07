@@ -51,10 +51,13 @@ async function membershipFromRequest(req: Parameters<RequestHandler>[0]) {
     SELECT id, status
     FROM stripe.subscriptions
     WHERE customer = ${membership.company.stripeCustomerId}
+      AND status IN ('active', 'trialing')
     ORDER BY created DESC
     LIMIT 1
   `);
   const subscription = subscriptionResult.rows[0] as { id?: string; status?: string } | undefined;
+  if (!subscription?.id || !subscription.status) return membership;
+
   const subscriptionId = subscription?.id ?? null;
   const subscriptionStatus = subscription?.status ?? "inactive";
 

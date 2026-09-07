@@ -831,13 +831,30 @@ export default function ZeitAppScreen() {
   const { isSignedIn, signOut } = useAuth();
   const queryClient = useQueryClient();
   const dashboard = useGetTimeAppMe({
-    query: { queryKey: getGetTimeAppMeQueryKey(), enabled: Boolean(isSignedIn) },
+    query: {
+      queryKey: getGetTimeAppMeQueryKey(),
+      enabled: Boolean(isSignedIn),
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchInterval: isSignedIn ? 15_000 : false,
+    },
   });
   const employeeName = dashboard.data?.employee.displayName ?? '';
   const [newOwner, setNewOwner] = useState(false);
   const role = dashboard.data?.employee.role;
   const dashboardError = dashboard.error as { status?: number; data?: { code?: string } } | null;
   const subscriptionBlocked = dashboardError?.status === 402 || dashboardError?.data?.code === 'SUBSCRIPTION_REQUIRED';
+
+  useEffect(() => {
+    if (!isSignedIn || Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const refreshDashboard = () => void dashboard.refetch();
+    window.addEventListener('pageshow', refreshDashboard);
+    window.addEventListener('focus', refreshDashboard);
+    return () => {
+      window.removeEventListener('pageshow', refreshDashboard);
+      window.removeEventListener('focus', refreshDashboard);
+    };
+  }, [dashboard.refetch, isSignedIn]);
 
   const content = useMemo(
     () =>
