@@ -702,22 +702,27 @@ router.post("/timeapp/billing/checkout", requireRoles("owner"), async (req, res)
   const productMetadata = (price.rows[0] as { metadata?: { trial_days?: string } }).metadata;
   const parsedTrialDays = Number.parseInt(productMetadata?.trial_days ?? "0", 10);
   const trialDays = Number.isFinite(parsedTrialDays) ? Math.min(Math.max(parsedTrialDays, 0), 90) : 0;
-  let customerId = membership.company.stripeCustomerId;
-  if (!customerId) {
-    const customer = await stripeService.createCustomer(await ownerEmail(membership.company.ownerUserId), membership.company.id);
-    customerId = customer.id;
-    await db.update(companies).set({ stripeCustomerId: customerId, updatedAt: new Date() }).where(eq(companies.id, membership.company.id));
+  try {
+    let customerId = membership.company.stripeCustomerId;
+    if (!customerId) {
+      const customer = await stripeService.createCustomer(await ownerEmail(membership.company.ownerUserId), membership.company.id);
+      customerId = customer.id;
+      await db.update(companies).set({ stripeCustomerId: customerId, updatedAt: new Date() }).where(eq(companies.id, membership.company.id));
+    }
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const session = await stripeService.createCheckoutSession(
+      customerId,
+      priceId,
+      typeof req.body?.successUrl === "string" ? req.body.successUrl : `${baseUrl}/billing/success`,
+      typeof req.body?.cancelUrl === "string" ? req.body.cancelUrl : `${baseUrl}/billing/cancel`,
+      membership.company.id,
+      trialDays,
+    );
+    res.json({ url: session.url });
+  } catch (error) {
+    req.log.error({ err: error }, "Stripe checkout unavailable");
+    res.status(503).json({ error: "Stripe ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut." });
   }
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
-  const session = await stripeService.createCheckoutSession(
-    customerId,
-    priceId,
-    typeof req.body?.successUrl === "string" ? req.body.successUrl : `${baseUrl}/billing/success`,
-    typeof req.body?.cancelUrl === "string" ? req.body.cancelUrl : `${baseUrl}/billing/cancel`,
-    membership.company.id,
-    trialDays,
-  );
-  res.json({ url: session.url });
 });
 
 router.post("/timeapp/billing/portal", requireRoles("owner"), async (req, res) => {
@@ -726,12 +731,17 @@ router.post("/timeapp/billing/portal", requireRoles("owner"), async (req, res) =
     res.status(409).json({ error: "Für diese Firma wurde noch kein Stripe-Konto angelegt." });
     return;
   }
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
-  const session = await stripeService.createCustomerPortalSession(
-    membership.company.stripeCustomerId,
-    typeof req.body?.returnUrl === "string" ? req.body.returnUrl : `${baseUrl}/billing`,
-  );
-  res.json({ url: session.url });
+  try {
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const session = await stripeService.createCustomerPortalSession(
+      membership.company.stripeCustomerId,
+      typeof req.body?.returnUrl === "string" ? req.body.returnUrl : `${baseUrl}/billing`,
+    );
+    res.json({ url: session.url });
+  } catch (error) {
+    req.log.error({ err: error }, "Stripe customer portal unavailable");
+    res.status(503).json({ error: "Stripe ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut." });
+  }
 });
 
 export default router;

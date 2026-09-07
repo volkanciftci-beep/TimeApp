@@ -28,7 +28,14 @@ async function initStripe() {
   void sync.syncBackfill().catch((error) => logger.error({ err: error }, "Stripe backfill failed"));
 }
 
-await initStripe();
+try {
+  await initStripe();
+} catch (error) {
+  logger.warn(
+    { err: error },
+    "Stripe initialization unavailable; starting core API with billing temporarily disabled",
+  );
+}
 
 app.listen(port, (err) => {
   if (err) {
