@@ -28,20 +28,32 @@ async function initStripe() {
   void sync.syncBackfill().catch((error) => logger.error({ err: error }, "Stripe backfill failed"));
 }
 
-try {
-  await initStripe();
-} catch (error) {
-  logger.warn(
-    { err: error },
-    "Stripe initialization unavailable; starting core API with billing temporarily disabled",
-  );
+let stripeRetryDelayMs = 5_000;
+
+async function initializeStripeWithRetry() {
+  try {
+    await initStripe();
+    stripeRetryDelayMs = 5_000;
+    logger.info("Stripe migrations, webhook, and synchronization initialized");
+  } catch (error) {
+    logger.error(
+      { err: error, retryInMs: stripeRetryDelayMs },
+      "Stripe initialization failed; retry scheduled",
+    );
+    const retryTimer = setTimeout(() => {
+      void initializeStripeWithRetry();
+    }, stripeRetryDelayMs);
+    retryTimer.unref();
+    stripeRetryDelayMs = Math.min(stripeRetryDelayMs * 2, 60_000);
+  }
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+const server = app.listen(port, "0.0.0.0", () => {
+  logger.info({ port, host: "0.0.0.0" }, "Server listening");
+  void initializeStripeWithRetry();
+});
 
-  logger.info({ port }, "Server listening");
+server.on("error", (error) => {
+  logger.error({ err: error }, "Error listening on port");
+  process.exit(1);
 });
