@@ -48,6 +48,12 @@ app.use(
     },
   }),
 );
+app.get(["/api", "/api/"], (_req, res) => {
+  res.status(200).json({ status: "ok", service: "zeitapp-api" });
+});
+app.get("/api/healthz", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
