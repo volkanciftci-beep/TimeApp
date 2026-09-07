@@ -20,17 +20,31 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BillingCheckoutRequest,
+  BillingPlansResponse,
+  BillingPortalRequest,
+  BillingUrlResponse,
   ClockMutationResponse,
+  CompanyMembersResponse,
+  CompanyOnboardingResponse,
+  CompanyReportsResponse,
+  CompanyResponse,
+  CreateCompanyRequest,
+  CreateMemberRequest,
+  GetTimeAppCompanyReportsParams,
   GetTimeAppHistoryParams,
   GetTimeAppSummaryParams,
   HealthStatus,
   HistoryResponse,
+  MemberCredentialsResponse,
+  MemberResponse,
+  MemberStatusRequest,
   Summary,
   TimeAppMeResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
-import type { ErrorType } from '../custom-fetch';
+import type { ErrorType , BodyType } from '../custom-fetch';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -662,4 +676,746 @@ export function useGetTimeAppSummary<TData = Awaited<ReturnType<typeof getTimeAp
 
 
 
+
+export const getCreateTimeAppCompanyUrl = () => {
+
+
+
+
+  return `/api/timeapp/onboarding/company`
+}
+
+/**
+ * @summary Create a company account for the signed-in owner
+ */
+export const createTimeAppCompany = async (createCompanyRequest: CreateCompanyRequest, options?: Parameters<typeof customFetch>[1]): Promise<CompanyOnboardingResponse> => {
+
+  return customFetch<CompanyOnboardingResponse>(getCreateTimeAppCompanyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createCompanyRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateTimeAppCompanyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppCompany>>, TError,{data: BodyType<CreateCompanyRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTimeAppCompany>>, TError,{data: BodyType<CreateCompanyRequest>}, TContext> => {
+
+const mutationKey = ['createTimeAppCompany'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTimeAppCompany>>, {data: BodyType<CreateCompanyRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTimeAppCompany(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTimeAppCompanyMutationResult = NonNullable<Awaited<ReturnType<typeof createTimeAppCompany>>>
+    export type CreateTimeAppCompanyMutationBody = BodyType<CreateCompanyRequest>
+    export type CreateTimeAppCompanyMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a company account for the signed-in owner
+ */
+export const useCreateTimeAppCompany = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppCompany>>, TError,{data: BodyType<CreateCompanyRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTimeAppCompany>>,
+        TError,
+        {data: BodyType<CreateCompanyRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateTimeAppCompanyMutationOptions(options));
+    }
+
+export const getGetTimeAppCompanyUrl = () => {
+
+
+
+
+  return `/api/timeapp/company`
+}
+
+/**
+ * @summary Get the current company and role
+ */
+export const getTimeAppCompany = async ( options?: Parameters<typeof customFetch>[1]): Promise<CompanyResponse> => {
+
+  return customFetch<CompanyResponse>(getGetTimeAppCompanyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppCompanyQueryKey = () => {
+    return [
+    `/api/timeapp/company`
+    ] as const;
+    }
+
+
+export const getGetTimeAppCompanyQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppCompany>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompany>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppCompanyQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppCompany>>> = ({ signal }) => getTimeAppCompany({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompany>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppCompanyQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppCompany>>>
+export type GetTimeAppCompanyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the current company and role
+ */
+
+export function useGetTimeAppCompany<TData = Awaited<ReturnType<typeof getTimeAppCompany>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompany>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppCompanyQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTimeAppCompanyMembersUrl = () => {
+
+
+
+
+  return `/api/timeapp/company/members`
+}
+
+/**
+ * @summary List members in the current tenant
+ */
+export const getTimeAppCompanyMembers = async ( options?: Parameters<typeof customFetch>[1]): Promise<CompanyMembersResponse> => {
+
+  return customFetch<CompanyMembersResponse>(getGetTimeAppCompanyMembersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppCompanyMembersQueryKey = () => {
+    return [
+    `/api/timeapp/company/members`
+    ] as const;
+    }
+
+
+export const getGetTimeAppCompanyMembersQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppCompanyMembers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppCompanyMembersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppCompanyMembers>>> = ({ signal }) => getTimeAppCompanyMembers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMembers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppCompanyMembersQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppCompanyMembers>>>
+export type GetTimeAppCompanyMembersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List members in the current tenant
+ */
+
+export function useGetTimeAppCompanyMembers<TData = Awaited<ReturnType<typeof getTimeAppCompanyMembers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppCompanyMembersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTimeAppCompanyMemberUrl = () => {
+
+
+
+
+  return `/api/timeapp/company/members`
+}
+
+/**
+ * @summary Create a managed employee or manager account
+ */
+export const createTimeAppCompanyMember = async (createMemberRequest: CreateMemberRequest, options?: Parameters<typeof customFetch>[1]): Promise<MemberCredentialsResponse> => {
+
+  return customFetch<MemberCredentialsResponse>(getCreateTimeAppCompanyMemberUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createMemberRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateTimeAppCompanyMemberMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppCompanyMember>>, TError,{data: BodyType<CreateMemberRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTimeAppCompanyMember>>, TError,{data: BodyType<CreateMemberRequest>}, TContext> => {
+
+const mutationKey = ['createTimeAppCompanyMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTimeAppCompanyMember>>, {data: BodyType<CreateMemberRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTimeAppCompanyMember(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTimeAppCompanyMemberMutationResult = NonNullable<Awaited<ReturnType<typeof createTimeAppCompanyMember>>>
+    export type CreateTimeAppCompanyMemberMutationBody = BodyType<CreateMemberRequest>
+    export type CreateTimeAppCompanyMemberMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a managed employee or manager account
+ */
+export const useCreateTimeAppCompanyMember = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppCompanyMember>>, TError,{data: BodyType<CreateMemberRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTimeAppCompanyMember>>,
+        TError,
+        {data: BodyType<CreateMemberRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateTimeAppCompanyMemberMutationOptions(options));
+    }
+
+export const getUpdateTimeAppCompanyMemberStatusUrl = (userId: string,) => {
+
+
+
+
+  return `/api/timeapp/company/members/${userId}/status`
+}
+
+/**
+ * @summary Activate or deactivate a member
+ */
+export const updateTimeAppCompanyMemberStatus = async (userId: string,
+    memberStatusRequest: MemberStatusRequest, options?: Parameters<typeof customFetch>[1]): Promise<MemberResponse> => {
+
+  return customFetch<MemberResponse>(getUpdateTimeAppCompanyMemberStatusUrl(userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(memberStatusRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateTimeAppCompanyMemberStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberStatus>>, TError,{userId: string;data: BodyType<MemberStatusRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberStatus>>, TError,{userId: string;data: BodyType<MemberStatusRequest>}, TContext> => {
+
+const mutationKey = ['updateTimeAppCompanyMemberStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTimeAppCompanyMemberStatus>>, {userId: string;data: BodyType<MemberStatusRequest>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateTimeAppCompanyMemberStatus(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTimeAppCompanyMemberStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateTimeAppCompanyMemberStatus>>>
+    export type UpdateTimeAppCompanyMemberStatusMutationBody = BodyType<MemberStatusRequest>
+    export type UpdateTimeAppCompanyMemberStatusMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Activate or deactivate a member
+ */
+export const useUpdateTimeAppCompanyMemberStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberStatus>>, TError,{userId: string;data: BodyType<MemberStatusRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTimeAppCompanyMemberStatus>>,
+        TError,
+        {userId: string;data: BodyType<MemberStatusRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateTimeAppCompanyMemberStatusMutationOptions(options));
+    }
+
+export const getDeleteTimeAppCompanyMemberUrl = (userId: string,) => {
+
+
+
+
+  return `/api/timeapp/company/members/${userId}`
+}
+
+/**
+ * @summary Delete a member and their time records
+ */
+export const deleteTimeAppCompanyMember = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteTimeAppCompanyMemberUrl(userId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTimeAppCompanyMemberMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTimeAppCompanyMember>>, TError,{userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTimeAppCompanyMember>>, TError,{userId: string}, TContext> => {
+
+const mutationKey = ['deleteTimeAppCompanyMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTimeAppCompanyMember>>, {userId: string}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  deleteTimeAppCompanyMember(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTimeAppCompanyMemberMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTimeAppCompanyMember>>>
+
+    export type DeleteTimeAppCompanyMemberMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a member and their time records
+ */
+export const useDeleteTimeAppCompanyMember = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTimeAppCompanyMember>>, TError,{userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTimeAppCompanyMember>>,
+        TError,
+        {userId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteTimeAppCompanyMemberMutationOptions(options));
+    }
+
+export const getGetTimeAppCompanyReportsUrl = (params?: GetTimeAppCompanyReportsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/timeapp/company/reports?${stringifiedParams}` : `/api/timeapp/company/reports`
+}
+
+/**
+ * @summary Get tenant-scoped work reports
+ */
+export const getTimeAppCompanyReports = async (params?: GetTimeAppCompanyReportsParams, options?: Parameters<typeof customFetch>[1]): Promise<CompanyReportsResponse> => {
+
+  return customFetch<CompanyReportsResponse>(getGetTimeAppCompanyReportsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppCompanyReportsQueryKey = (params?: GetTimeAppCompanyReportsParams,) => {
+    return [
+    `/api/timeapp/company/reports`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTimeAppCompanyReportsQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppCompanyReports>>, TError = ErrorType<unknown>>(params?: GetTimeAppCompanyReportsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppCompanyReportsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppCompanyReports>>> = ({ signal }) => getTimeAppCompanyReports(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyReports>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppCompanyReportsQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppCompanyReports>>>
+export type GetTimeAppCompanyReportsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get tenant-scoped work reports
+ */
+
+export function useGetTimeAppCompanyReports<TData = Awaited<ReturnType<typeof getTimeAppCompanyReports>>, TError = ErrorType<unknown>>(
+ params?: GetTimeAppCompanyReportsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppCompanyReportsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTimeAppBillingPlansUrl = () => {
+
+
+
+
+  return `/api/timeapp/billing/plans`
+}
+
+/**
+ * @summary List active recurring Stripe plans
+ */
+export const getTimeAppBillingPlans = async ( options?: Parameters<typeof customFetch>[1]): Promise<BillingPlansResponse> => {
+
+  return customFetch<BillingPlansResponse>(getGetTimeAppBillingPlansUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppBillingPlansQueryKey = () => {
+    return [
+    `/api/timeapp/billing/plans`
+    ] as const;
+    }
+
+
+export const getGetTimeAppBillingPlansQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppBillingPlans>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppBillingPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppBillingPlansQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppBillingPlans>>> = ({ signal }) => getTimeAppBillingPlans({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppBillingPlans>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppBillingPlansQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppBillingPlans>>>
+export type GetTimeAppBillingPlansQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List active recurring Stripe plans
+ */
+
+export function useGetTimeAppBillingPlans<TData = Awaited<ReturnType<typeof getTimeAppBillingPlans>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppBillingPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppBillingPlansQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTimeAppBillingCheckoutUrl = () => {
+
+
+
+
+  return `/api/timeapp/billing/checkout`
+}
+
+/**
+ * @summary Create an owner-only Stripe subscription checkout
+ */
+export const createTimeAppBillingCheckout = async (billingCheckoutRequest: BillingCheckoutRequest, options?: Parameters<typeof customFetch>[1]): Promise<BillingUrlResponse> => {
+
+  return customFetch<BillingUrlResponse>(getCreateTimeAppBillingCheckoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(billingCheckoutRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateTimeAppBillingCheckoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppBillingCheckout>>, TError,{data: BodyType<BillingCheckoutRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTimeAppBillingCheckout>>, TError,{data: BodyType<BillingCheckoutRequest>}, TContext> => {
+
+const mutationKey = ['createTimeAppBillingCheckout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTimeAppBillingCheckout>>, {data: BodyType<BillingCheckoutRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTimeAppBillingCheckout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTimeAppBillingCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createTimeAppBillingCheckout>>>
+    export type CreateTimeAppBillingCheckoutMutationBody = BodyType<BillingCheckoutRequest>
+    export type CreateTimeAppBillingCheckoutMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create an owner-only Stripe subscription checkout
+ */
+export const useCreateTimeAppBillingCheckout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppBillingCheckout>>, TError,{data: BodyType<BillingCheckoutRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTimeAppBillingCheckout>>,
+        TError,
+        {data: BodyType<BillingCheckoutRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateTimeAppBillingCheckoutMutationOptions(options));
+    }
+
+export const getCreateTimeAppBillingPortalUrl = () => {
+
+
+
+
+  return `/api/timeapp/billing/portal`
+}
+
+/**
+ * @summary Create an owner-only Stripe customer portal session
+ */
+export const createTimeAppBillingPortal = async (billingPortalRequest?: BillingPortalRequest, options?: Parameters<typeof customFetch>[1]): Promise<BillingUrlResponse> => {
+
+  return customFetch<BillingUrlResponse>(getCreateTimeAppBillingPortalUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(billingPortalRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateTimeAppBillingPortalMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppBillingPortal>>, TError,{data?: BodyType<BillingPortalRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTimeAppBillingPortal>>, TError,{data?: BodyType<BillingPortalRequest>}, TContext> => {
+
+const mutationKey = ['createTimeAppBillingPortal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTimeAppBillingPortal>>, {data?: BodyType<BillingPortalRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTimeAppBillingPortal(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTimeAppBillingPortalMutationResult = NonNullable<Awaited<ReturnType<typeof createTimeAppBillingPortal>>>
+    export type CreateTimeAppBillingPortalMutationBody = BodyType<BillingPortalRequest> | undefined
+    export type CreateTimeAppBillingPortalMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create an owner-only Stripe customer portal session
+ */
+export const useCreateTimeAppBillingPortal = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppBillingPortal>>, TError,{data?: BodyType<BillingPortalRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTimeAppBillingPortal>>,
+        TError,
+        {data?: BodyType<BillingPortalRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateTimeAppBillingPortalMutationOptions(options));
+    }
 

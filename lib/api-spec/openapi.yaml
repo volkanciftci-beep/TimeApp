@@ -12,6 +12,10 @@ tags:
     description: Health operations
   - name: timeapp
     description: Authenticated employee time tracking
+  - name: company
+    description: Company owner and manager administration
+  - name: billing
+    description: Company subscription management
 paths:
   /healthz:
     get:
@@ -155,6 +159,193 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Summary"
+  /timeapp/onboarding/company:
+    post:
+      operationId: createTimeAppCompany
+      tags: [company]
+      summary: Create a company account for the signed-in owner
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompanyRequest"
+      responses:
+        "201":
+          description: Company created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyOnboardingResponse"
+        "409":
+          description: Account already belongs to a company
+  /timeapp/company:
+    get:
+      operationId: getTimeAppCompany
+      tags: [company]
+      summary: Get the current company and role
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Company profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyResponse"
+  /timeapp/company/members:
+    get:
+      operationId: getTimeAppCompanyMembers
+      tags: [company]
+      summary: List members in the current tenant
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Company members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyMembersResponse"
+    post:
+      operationId: createTimeAppCompanyMember
+      tags: [company]
+      summary: Create a managed employee or manager account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemberRequest"
+      responses:
+        "201":
+          description: Member created with one-time credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberCredentialsResponse"
+  /timeapp/company/members/{userId}/status:
+    patch:
+      operationId: updateTimeAppCompanyMemberStatus
+      tags: [company]
+      summary: Activate or deactivate a member
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberStatusRequest"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+  /timeapp/company/members/{userId}:
+    delete:
+      operationId: deleteTimeAppCompanyMember
+      tags: [company]
+      summary: Delete a member and their time records
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Member deleted
+  /timeapp/company/reports:
+    get:
+      operationId: getTimeAppCompanyReports
+      tags: [company]
+      summary: Get tenant-scoped work reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [week, month]
+            default: week
+      responses:
+        "200":
+          description: Tenant report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyReportsResponse"
+  /timeapp/billing/plans:
+    get:
+      operationId: getTimeAppBillingPlans
+      tags: [billing]
+      summary: List active recurring Stripe plans
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Billing plans
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingPlansResponse"
+  /timeapp/billing/checkout:
+    post:
+      operationId: createTimeAppBillingCheckout
+      tags: [billing]
+      summary: Create an owner-only Stripe subscription checkout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BillingCheckoutRequest"
+      responses:
+        "200":
+          description: Checkout URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingUrlResponse"
+  /timeapp/billing/portal:
+    post:
+      operationId: createTimeAppBillingPortal
+      tags: [billing]
+      summary: Create an owner-only Stripe customer portal session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BillingPortalRequest"
+      responses:
+        "200":
+          description: Portal URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingUrlResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -182,10 +373,205 @@ components:
           type: string
         role:
           type: string
-          enum: [employee, admin]
+          enum: [owner, manager, employee]
         hourlyRateCents:
           type: integer
       required: [userId, employeeId, email, displayName, role, hourlyRateCents]
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        companyCode:
+          type: string
+        subscriptionStatus:
+          type: string
+        plan:
+          type: string
+        hasActiveSubscription:
+          type: boolean
+      required: [id, name, companyCode, subscriptionStatus, plan, hasActiveSubscription]
+    CompanyMember:
+      type: object
+      properties:
+        userId:
+          type: string
+        employeeId:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [owner, manager, employee]
+        status:
+          type: string
+          enum: [active, inactive]
+        hourlyRateCents:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required: [userId, employeeId, email, displayName, role, status, hourlyRateCents, createdAt]
+    CreateCompanyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+      required: [name]
+    CompanyOnboardingResponse:
+      type: object
+      properties:
+        company:
+          $ref: "#/components/schemas/Company"
+        employeeId:
+          type: string
+      required: [company, employeeId]
+    CompanyResponse:
+      type: object
+      properties:
+        company:
+          $ref: "#/components/schemas/Company"
+        currentUser:
+          $ref: "#/components/schemas/CompanyMember"
+      required: [company, currentUser]
+    CompanyMembersResponse:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompanyMember"
+      required: [members]
+    CreateMemberRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [manager, employee]
+        hourlyRateCents:
+          type: integer
+      required: [displayName, email]
+    MemberCredentialsResponse:
+      type: object
+      properties:
+        member:
+          $ref: "#/components/schemas/CompanyMember"
+        companyCode:
+          type: string
+        temporaryPassword:
+          type: string
+      required: [member, companyCode, temporaryPassword]
+    MemberStatusRequest:
+      type: object
+      properties:
+        active:
+          type: boolean
+      required: [active]
+    MemberResponse:
+      type: object
+      properties:
+        member:
+          $ref: "#/components/schemas/CompanyMember"
+      required: [member]
+    CompanyReport:
+      type: object
+      properties:
+        userId:
+          type: string
+        employeeId:
+          type: string
+        displayName:
+          type: string
+        totalWorkSeconds:
+          type: integer
+        totalBreakSeconds:
+          type: integer
+        workingDays:
+          type: integer
+      required: [userId, employeeId, displayName, totalWorkSeconds, totalBreakSeconds, workingDays]
+    CompanyReportsResponse:
+      type: object
+      properties:
+        period:
+          type: string
+          enum: [week, month]
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        reports:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompanyReport"
+      required: [period, from, to, reports]
+    BillingPlan:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        priceId:
+          type: string
+        unitAmount:
+          type: integer
+          nullable: true
+        currency:
+          type: string
+        recurring:
+          type: object
+          nullable: true
+      required: [id, priceId, currency]
+    BillingPlansResponse:
+      type: object
+      properties:
+        plans:
+          type: array
+          items:
+            $ref: "#/components/schemas/BillingPlan"
+      required: [plans]
+    BillingCheckoutRequest:
+      type: object
+      properties:
+        priceId:
+          type: string
+        successUrl:
+          type: string
+          format: uri
+        cancelUrl:
+          type: string
+          format: uri
+      required: [priceId]
+    BillingPortalRequest:
+      type: object
+      properties:
+        returnUrl:
+          type: string
+          format: uri
+    BillingUrlResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          nullable: true
+      required: [url]
     BreakEntry:
       type: object
       properties:
@@ -283,13 +669,15 @@ components:
       properties:
         employee:
           $ref: "#/components/schemas/EmployeeProfile"
+        company:
+          $ref: "#/components/schemas/Company"
         clock:
           $ref: "#/components/schemas/ClockStatus"
         week:
           $ref: "#/components/schemas/Summary"
         month:
           $ref: "#/components/schemas/Summary"
-      required: [employee, clock, week, month]
+      required: [employee, company, clock, week, month]
     ClockMutationResponse:
       type: object
       properties:

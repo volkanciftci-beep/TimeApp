@@ -50,7 +50,7 @@ const colors = {
     border: '#D9E1E4',
     input: '#D9E1E4',
 
-    // TimeApp brand tokens
+    // ZeitApp brand tokens
     brandDeep: '#102C3A',
     brandMid: '#174C58',
     success: '#1F7A5A',

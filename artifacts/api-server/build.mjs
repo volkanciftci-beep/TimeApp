@@ -100,6 +100,9 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      // stripe-replit-sync loads its packaged SQL migrations from disk at runtime.
+      // Bundling it relocates __dirname and leaves the Stripe schema empty.
+      "stripe-replit-sync",
     ],
     sourcemap: "linked",
     plugins: [

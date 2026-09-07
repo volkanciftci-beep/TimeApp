@@ -1,5 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { runMigrations } from "stripe-replit-sync";
+import { getStripeSync } from "./stripeClient";
 
 const rawPort = process.env["PORT"];
 
@@ -14,6 +16,19 @@ const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
+
+async function initStripe() {
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for Stripe.");
+  await runMigrations({ databaseUrl: process.env.DATABASE_URL });
+  const sync = await getStripeSync();
+  const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
+  if (domain) {
+    await sync.findOrCreateManagedWebhook(`https://${domain}/api/stripe/webhook`);
+  }
+  void sync.syncBackfill().catch((error) => logger.error({ err: error }, "Stripe backfill failed"));
+}
+
+await initStripe();
 
 app.listen(port, (err) => {
   if (err) {

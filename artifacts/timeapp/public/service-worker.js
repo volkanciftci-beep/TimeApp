@@ -1,4 +1,4 @@
-const CACHE_NAME = 'timeapp-pwa-v1';
+const CACHE_NAME = 'zeitapp-pwa-v1';
 const APP_SHELL = [
   './',
   './manifest.json',

@@ -26,8 +26,16 @@ export const GetTimeAppMeResponse = zod.object({
   "employeeId": zod.string(),
   "email": zod.string().email(),
   "displayName": zod.string(),
-  "role": zod.enum(['employee', 'admin']),
+  "role": zod.enum(['owner', 'manager', 'employee']),
   "hourlyRateCents": zod.number().int()
+}),
+  "company": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "companyCode": zod.string(),
+  "subscriptionStatus": zod.string(),
+  "plan": zod.string(),
+  "hasActiveSubscription": zod.boolean()
 }),
   "clock": zod.object({
   "status": zod.enum(['off_duty', 'on_duty', 'on_break']),
@@ -169,6 +177,197 @@ export const GetTimeAppSummaryResponse = zod.object({
   "workingDays": zod.number().int(),
   "averageWorkSeconds": zod.number().int(),
   "estimatedGrossCents": zod.number().int()
+})
+
+
+/**
+ * @summary Create a company account for the signed-in owner
+ */
+export const CreateTimeAppCompanyBody = zod.object({
+  "name": zod.string()
+})
+
+export const CreateTimeAppCompanyResponse = zod.object({
+  "company": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "companyCode": zod.string(),
+  "subscriptionStatus": zod.string(),
+  "plan": zod.string(),
+  "hasActiveSubscription": zod.boolean()
+}),
+  "employeeId": zod.string()
+})
+
+
+/**
+ * @summary Get the current company and role
+ */
+export const GetTimeAppCompanyResponse = zod.object({
+  "company": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "companyCode": zod.string(),
+  "subscriptionStatus": zod.string(),
+  "plan": zod.string(),
+  "hasActiveSubscription": zod.boolean()
+}),
+  "currentUser": zod.object({
+  "userId": zod.string(),
+  "employeeId": zod.string(),
+  "email": zod.string().email(),
+  "displayName": zod.string(),
+  "role": zod.enum(['owner', 'manager', 'employee']),
+  "status": zod.enum(['active', 'inactive']),
+  "hourlyRateCents": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary List members in the current tenant
+ */
+export const GetTimeAppCompanyMembersResponse = zod.object({
+  "members": zod.array(zod.object({
+  "userId": zod.string(),
+  "employeeId": zod.string(),
+  "email": zod.string().email(),
+  "displayName": zod.string(),
+  "role": zod.enum(['owner', 'manager', 'employee']),
+  "status": zod.enum(['active', 'inactive']),
+  "hourlyRateCents": zod.number().int(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a managed employee or manager account
+ */
+export const CreateTimeAppCompanyMemberBody = zod.object({
+  "displayName": zod.string(),
+  "email": zod.string().email(),
+  "role": zod.enum(['manager', 'employee']).optional(),
+  "hourlyRateCents": zod.number().int().optional()
+})
+
+export const CreateTimeAppCompanyMemberResponse = zod.object({
+  "member": zod.object({
+  "userId": zod.string(),
+  "employeeId": zod.string(),
+  "email": zod.string().email(),
+  "displayName": zod.string(),
+  "role": zod.enum(['owner', 'manager', 'employee']),
+  "status": zod.enum(['active', 'inactive']),
+  "hourlyRateCents": zod.number().int(),
+  "createdAt": zod.coerce.date()
+}),
+  "companyCode": zod.string(),
+  "temporaryPassword": zod.string()
+})
+
+
+/**
+ * @summary Activate or deactivate a member
+ */
+export const UpdateTimeAppCompanyMemberStatusParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdateTimeAppCompanyMemberStatusBody = zod.object({
+  "active": zod.boolean()
+})
+
+export const UpdateTimeAppCompanyMemberStatusResponse = zod.object({
+  "member": zod.object({
+  "userId": zod.string(),
+  "employeeId": zod.string(),
+  "email": zod.string().email(),
+  "displayName": zod.string(),
+  "role": zod.enum(['owner', 'manager', 'employee']),
+  "status": zod.enum(['active', 'inactive']),
+  "hourlyRateCents": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Delete a member and their time records
+ */
+export const DeleteTimeAppCompanyMemberParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const DeleteTimeAppCompanyMemberResponse = zod.void()
+
+
+/**
+ * @summary Get tenant-scoped work reports
+ */
+export const getTimeAppCompanyReportsQueryPeriodDefault = `week`;
+
+export const GetTimeAppCompanyReportsQueryParams = zod.object({
+  "period": zod.enum(['week', 'month']).default(getTimeAppCompanyReportsQueryPeriodDefault)
+})
+
+export const GetTimeAppCompanyReportsResponse = zod.object({
+  "period": zod.enum(['week', 'month']),
+  "from": zod.coerce.date(),
+  "to": zod.coerce.date(),
+  "reports": zod.array(zod.object({
+  "userId": zod.string(),
+  "employeeId": zod.string(),
+  "displayName": zod.string(),
+  "totalWorkSeconds": zod.number().int(),
+  "totalBreakSeconds": zod.number().int(),
+  "workingDays": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary List active recurring Stripe plans
+ */
+export const GetTimeAppBillingPlansResponse = zod.object({
+  "plans": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "priceId": zod.string(),
+  "unitAmount": zod.number().int().nullish(),
+  "currency": zod.string(),
+  "recurring": zod.object({
+
+}).passthrough().nullish()
+}))
+})
+
+
+/**
+ * @summary Create an owner-only Stripe subscription checkout
+ */
+export const CreateTimeAppBillingCheckoutBody = zod.object({
+  "priceId": zod.string(),
+  "successUrl": zod.string().url().optional(),
+  "cancelUrl": zod.string().url().optional()
+})
+
+export const CreateTimeAppBillingCheckoutResponse = zod.object({
+  "url": zod.string().url().nullable()
+})
+
+
+/**
+ * @summary Create an owner-only Stripe customer portal session
+ */
+export const CreateTimeAppBillingPortalBody = zod.object({
+  "returnUrl": zod.string().url().optional()
+})
+
+export const CreateTimeAppBillingPortalResponse = zod.object({
+  "url": zod.string().url().nullable()
 })
 
 

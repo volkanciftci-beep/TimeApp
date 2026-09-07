@@ -1,6 +1,6 @@
-# TimeApp
+# ZeitApp
 
-TimeApp is a German-language mobile employee time tracking prototype for companies in Germany.
+ZeitApp is a German-language, multi-tenant B2B employee time tracking SaaS for companies.
 
 ## Run & Operate
 
@@ -18,34 +18,38 @@ TimeApp is a German-language mobile employee time tracking prototype for compani
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Authentication: Replit-managed Clerk
+- Billing: Stripe with `stripe-replit-sync`
+- Build: esbuild (ESM bundle)
 
 ## Where things live
 
-- `artifacts/timeapp` — Expo mobile app with the login and employee time clock experience.
-- `artifacts/timeapp/app/index.tsx` — single-route prototype UI and local clock behavior.
-- `artifacts/timeapp/constants/colors.ts` — TimeApp brand and semantic color tokens.
-- `artifacts/timeapp/assets/images/timeapp-icon.png` — generated app icon.
+- `artifacts/timeapp` — Expo mobile/PWA app for employee time tracking and company administration.
+- `artifacts/timeapp/app/index.tsx` — focused role-aware UI for owners, managers, and employees.
+- `artifacts/timeapp/constants/colors.ts` — ZeitApp brand and semantic color tokens.
+- `artifacts/timeapp/assets/images/timeapp-icon.png` — ZeitApp app icon.
 - `artifacts/timeapp/public` — PWA manifest, service worker, iOS install metadata, and web icons.
-- `artifacts/api-server` — shared Express API scaffold; not required by the first frontend-only prototype.
+- `artifacts/api-server` — Clerk-protected tenant API and Stripe billing service.
+- `lib/db/src/schema` — PostgreSQL/Drizzle company, employee, work-session, and break schema.
+- `lib/api-spec/openapi.yaml` — contract-first API source used to generate clients and validators.
 
 ## Architecture decisions
 
-- The first prototype is frontend-only and uses AsyncStorage for local clock persistence; no backend or database is needed yet.
+- PostgreSQL is the source of truth for companies, memberships, work sessions, breaks, and subscription linkage.
+- Every business-data query is scoped by the authenticated member's company ID.
+- Clerk owns credentials and sessions; employee passwords are never stored in PostgreSQL.
+- Employees are provisioned by owners/managers and sign in with company code, employee ID, and password.
+- Stripe subscriptions belong to companies, not individual employees.
 - The app intentionally uses one focused Expo Router screen rather than tabs because employees primarily need fast clock-in and clock-out actions.
-- Login is a prototype flow with local validation and a sample employee identity; production authentication should be added before release.
 
 ## Product
 
-Employees can sign in in German, see their name and the live date/time, start or end their workday, and view today's recorded hours and progress toward an eight-hour target.
-
-## User preferences
-
-- The first prototype should not include payment or subscription features.
+Employees can record work and breaks and review daily, weekly, and monthly totals. Managers administer their company's employees and reports. Owners also onboard the company and manage its Stripe subscription.
 
 ## Gotchas
 
-- The current login and time tracking behavior is intentionally local prototype behavior and is not a secure authentication implementation.
+- API route names retain the internal `/api/timeapp` namespace for generated-client compatibility; product branding is ZeitApp.
+- `stripe-replit-sync` must remain externalized from the API esbuild bundle because it loads packaged SQL migrations from disk at runtime.
 - The PWA service worker is scoped to the app path and uses a versioned cache so future web asset changes can invalidate the app shell.
 
 ## Pointers

@@ -13,8 +13,9 @@ export type EmployeeProfileRole = typeof EmployeeProfileRole[keyof typeof Employ
 
 
 export const EmployeeProfileRole = {
+  owner: 'owner',
+  manager: 'manager',
   employee: 'employee',
-  admin: 'admin',
 } as const;
 
 export interface EmployeeProfile {
@@ -24,6 +25,144 @@ export interface EmployeeProfile {
   displayName: string;
   role: EmployeeProfileRole;
   hourlyRateCents: number;
+}
+
+export interface Company {
+  id: number;
+  name: string;
+  companyCode: string;
+  subscriptionStatus: string;
+  plan: string;
+  hasActiveSubscription: boolean;
+}
+
+export type CompanyMemberRole = typeof CompanyMemberRole[keyof typeof CompanyMemberRole];
+
+
+export const CompanyMemberRole = {
+  owner: 'owner',
+  manager: 'manager',
+  employee: 'employee',
+} as const;
+
+export type CompanyMemberStatus = typeof CompanyMemberStatus[keyof typeof CompanyMemberStatus];
+
+
+export const CompanyMemberStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface CompanyMember {
+  userId: string;
+  employeeId: string;
+  email: string;
+  displayName: string;
+  role: CompanyMemberRole;
+  status: CompanyMemberStatus;
+  hourlyRateCents: number;
+  createdAt: string;
+}
+
+export interface CreateCompanyRequest {
+  name: string;
+}
+
+export interface CompanyOnboardingResponse {
+  company: Company;
+  employeeId: string;
+}
+
+export interface CompanyResponse {
+  company: Company;
+  currentUser: CompanyMember;
+}
+
+export interface CompanyMembersResponse {
+  members: CompanyMember[];
+}
+
+export type CreateMemberRequestRole = typeof CreateMemberRequestRole[keyof typeof CreateMemberRequestRole];
+
+
+export const CreateMemberRequestRole = {
+  manager: 'manager',
+  employee: 'employee',
+} as const;
+
+export interface CreateMemberRequest {
+  displayName: string;
+  email: string;
+  role?: CreateMemberRequestRole;
+  hourlyRateCents?: number;
+}
+
+export interface MemberCredentialsResponse {
+  member: CompanyMember;
+  companyCode: string;
+  temporaryPassword: string;
+}
+
+export interface MemberStatusRequest {
+  active: boolean;
+}
+
+export interface MemberResponse {
+  member: CompanyMember;
+}
+
+export interface CompanyReport {
+  userId: string;
+  employeeId: string;
+  displayName: string;
+  totalWorkSeconds: number;
+  totalBreakSeconds: number;
+  workingDays: number;
+}
+
+export type CompanyReportsResponsePeriod = typeof CompanyReportsResponsePeriod[keyof typeof CompanyReportsResponsePeriod];
+
+
+export const CompanyReportsResponsePeriod = {
+  week: 'week',
+  month: 'month',
+} as const;
+
+export interface CompanyReportsResponse {
+  period: CompanyReportsResponsePeriod;
+  from: string;
+  to: string;
+  reports: CompanyReport[];
+}
+
+export type BillingPlanRecurring = { [key: string]: unknown } | null;
+
+export interface BillingPlan {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  priceId: string;
+  unitAmount?: number | null;
+  currency: string;
+  recurring?: BillingPlanRecurring;
+}
+
+export interface BillingPlansResponse {
+  plans: BillingPlan[];
+}
+
+export interface BillingCheckoutRequest {
+  priceId: string;
+  successUrl?: string;
+  cancelUrl?: string;
+}
+
+export interface BillingPortalRequest {
+  returnUrl?: string;
+}
+
+export interface BillingUrlResponse {
+  url: string | null;
 }
 
 export interface BreakEntry {
@@ -87,6 +226,7 @@ export interface HistoryResponse {
 
 export interface TimeAppMeResponse {
   employee: EmployeeProfile;
+  company: Company;
   clock: ClockStatus;
   week: Summary;
   month: Summary;
@@ -110,6 +250,18 @@ export type GetTimeAppSummaryPeriod = typeof GetTimeAppSummaryPeriod[keyof typeo
 
 
 export const GetTimeAppSummaryPeriod = {
+  week: 'week',
+  month: 'month',
+} as const;
+
+export type GetTimeAppCompanyReportsParams = {
+period?: GetTimeAppCompanyReportsPeriod;
+};
+
+export type GetTimeAppCompanyReportsPeriod = typeof GetTimeAppCompanyReportsPeriod[keyof typeof GetTimeAppCompanyReportsPeriod];
+
+
+export const GetTimeAppCompanyReportsPeriod = {
   week: 'week',
   month: 'month',
 } as const;

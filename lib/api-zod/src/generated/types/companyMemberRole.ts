@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type EmployeeProfileRole = typeof EmployeeProfileRole[keyof typeof EmployeeProfileRole];
+export type CompanyMemberRole = typeof CompanyMemberRole[keyof typeof CompanyMemberRole];
 
 
-export const EmployeeProfileRole = {
+export const CompanyMemberRole = {
   owner: 'owner',
   manager: 'manager',
   employee: 'employee',

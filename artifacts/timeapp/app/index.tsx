@@ -4,18 +4,31 @@ import { useAuth, useSignIn, useSignUp } from '@clerk/expo';
 import {
   getGetTimeAppHistoryQueryKey,
   getGetTimeAppMeQueryKey,
+  getGetTimeAppCompanyMembersQueryKey,
+  getGetTimeAppCompanyReportsQueryKey,
+  getGetTimeAppBillingPlansQueryKey,
+  useCreateTimeAppBillingCheckout,
+  useCreateTimeAppBillingPortal,
+  useCreateTimeAppCompany,
+  useCreateTimeAppCompanyMember,
+  useDeleteTimeAppCompanyMember,
+  useGetTimeAppBillingPlans,
+  useGetTimeAppCompanyMembers,
+  useGetTimeAppCompanyReports,
   useGetTimeAppHistory,
   useGetTimeAppMe,
   useStartTimeAppBreak,
   useStartTimeAppWork,
   useStopTimeAppBreak,
   useStopTimeAppWork,
+  useUpdateTimeAppCompanyMemberStatus,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Keyboard,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -132,31 +145,39 @@ function IconInput({
   );
 }
 
-function LoginScreen({ colors }: { colors: Palette }) {
+function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreated: () => void }) {
   const insets = useSafeAreaInsets();
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
   const [identifier, setIdentifier] = useState('');
+  const [companyCode, setCompanyCode] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'employee' | 'owner-login' | 'owner-signup'>('employee');
   const [verificationSent, setVerificationSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
     Keyboard.dismiss();
-    if (!identifier.trim() || !password.trim()) {
-      setError('Bitte E-Mail-Adresse und Passwort eingeben.');
+    const ownerMode = mode !== 'employee';
+    if ((!ownerMode && (!companyCode.trim() || !employeeId.trim())) || (ownerMode && !identifier.trim()) || !password.trim()) {
+      setError(ownerMode ? 'Bitte E-Mail-Adresse und Passwort eingeben.' : 'Bitte Firmen-Code, Mitarbeiter-ID und Passwort eingeben.');
       return;
     }
 
     setLoading(true);
     setError('');
     try {
-      if (mode === 'signup') {
+      if (mode === 'owner-signup') {
+        if (!companyName.trim()) {
+          setError('Bitte den Firmennamen angeben.');
+          return;
+        }
         const result = await signUp.password({
           emailAddress: identifier.trim(),
           password,
@@ -169,7 +190,9 @@ function LoginScreen({ colors }: { colors: Palette }) {
         setVerificationSent(true);
       } else {
         const result = await signIn.password({
-          emailAddress: identifier.trim(),
+          ...(mode === 'employee'
+            ? { identifier: `${companyCode.trim().toUpperCase()}-${employeeId.trim().toUpperCase()}` }
+            : { emailAddress: identifier.trim() }),
           password,
         });
         if (result.error) {
@@ -200,6 +223,7 @@ function LoginScreen({ colors }: { colors: Palette }) {
         return;
       }
       if (signUp.status === 'complete') {
+        onOwnerCreated();
         await signUp.finalize({ navigate: () => undefined });
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -220,24 +244,34 @@ function LoginScreen({ colors }: { colors: Palette }) {
       <View style={[styles.loginHero, { backgroundColor: colors.brandDeep, paddingTop: insets.top + 28 }]}>
         <View style={styles.heroGlow} />
         <BrandMark colors={colors} />
-        <Text style={styles.wordmark}>TIMEAPP</Text>
+        <Text style={styles.wordmark}>ZEITAPP</Text>
         <Text style={[styles.heroSubtitle, { color: '#C5D8D8' }]}>Arbeitszeit. Einfach im Blick.</Text>
       </View>
 
       <View style={styles.loginContent}>
         <Text style={[styles.eyebrow, { color: colors.primary }]}>MITARBEITER-PORTAL</Text>
          <Text style={[styles.pageTitle, { color: colors.foreground }]}>
-           {mode === 'login' ? 'Mitarbeiter-Anmeldung' : 'Mitarbeiterkonto erstellen'}
+            {mode === 'employee' ? 'Mitarbeiter-Anmeldung' : mode === 'owner-login' ? 'Inhaber-Anmeldung' : 'Firmenkonto erstellen'}
          </Text>
         <Text style={[styles.pageIntro, { color: colors.mutedForeground }]}>
-           {mode === 'login'
+            {mode === 'employee'
              ? 'Melden Sie sich an, um Ihre Arbeitszeit zu erfassen.'
-             : 'Erstellen Sie ein persönliches Konto für TIMEAPP.'}
+              : mode === 'owner-login' ? 'Melden Sie sich mit Ihrer E-Mail-Adresse an.' : 'Erstellen Sie Ihr Inhaberkonto und richten Sie Ihre Firma ein.'}
         </Text>
 
         <View style={styles.form}>
-           <Text style={[styles.fieldLabel, { color: colors.foreground }]}>E-Mail-Adresse</Text>
-          <IconInput
+            {mode === 'employee' ? <>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Firmen-Code</Text>
+              <IconInput icon="briefcase" value={companyCode} onChangeText={setCompanyCode} placeholder="z. B. TA-ABC123" focused={focused === 'company'} onFocus={() => setFocused('company')} onBlur={() => setFocused(null)} colors={colors} />
+              <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 18 }]}>Mitarbeiter-ID</Text>
+              <IconInput icon="user" value={employeeId} onChangeText={setEmployeeId} placeholder="z. B. EMP-ABC123" focused={focused === 'employee'} onFocus={() => setFocused('employee')} onBlur={() => setFocused(null)} colors={colors} />
+            </> : <>
+            {mode === 'owner-signup' ? <>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Firmenname</Text>
+              <IconInput icon="briefcase" value={companyName} onChangeText={setCompanyName} placeholder="Ihre Firma" focused={focused === 'companyName'} onFocus={() => setFocused('companyName')} onBlur={() => setFocused(null)} colors={colors} />
+            </> : null}
+            <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: mode === 'owner-signup' ? 18 : 0 }]}>E-Mail-Adresse</Text>
+            <IconInput
             icon="user"
             value={identifier}
             onChangeText={(value) => {
@@ -250,9 +284,9 @@ function LoginScreen({ colors }: { colors: Palette }) {
             onBlur={() => setFocused(null)}
             colors={colors}
             keyboardType="email-address"
-          />
+            /></>}
 
-           {mode === 'login' ? <View style={styles.labelRow}>
+            {mode !== 'owner-signup' ? <View style={styles.labelRow}>
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Passwort</Text>
             <Pressable
               testID="timeapp-forgot-password"
@@ -278,7 +312,7 @@ function LoginScreen({ colors }: { colors: Palette }) {
             onTogglePassword={() => setShowPassword((current) => !current)}
           />
 
-           {verificationSent ? (
+            {verificationSent ? (
              <>
                <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 18 }]}>Bestätigungscode</Text>
                <IconInput
@@ -314,32 +348,36 @@ function LoginScreen({ colors }: { colors: Palette }) {
             ]}
           >
              <Text style={styles.loginButtonText}>
-               {verificationSent ? 'CODE BESTÄTIGEN' : mode === 'login' ? 'ANMELDEN' : 'REGISTRIEREN'}
+                {verificationSent ? 'CODE BESTÄTIGEN' : mode === 'owner-signup' ? 'KONTO ERSTELLEN' : 'ANMELDEN'}
              </Text>
              <Feather name={verificationSent ? 'check' : 'arrow-right'} size={19} color={colors.white} />
           </Pressable>
         </View>
 
          <Pressable
-           onPress={() => {
-             setMode(mode === 'login' ? 'signup' : 'login');
+            onPress={() => {
+              setMode(mode === 'employee' ? 'owner-login' : 'employee');
              setVerificationSent(false);
              setError('');
            }}
            style={styles.authSwitch}
          >
            <Text style={[styles.authSwitchText, { color: colors.mutedForeground }]}>
-             {mode === 'login' ? 'Noch kein Konto?' : 'Bereits registriert?'}{' '}
+              {mode === 'employee' ? 'Firmeninhaber?' : 'Mitarbeiter?'}{' '}
            </Text>
            <Text style={[styles.authSwitchLink, { color: colors.primary }]}>
-             {mode === 'login' ? 'Konto erstellen' : 'Anmelden'}
+              {mode === 'employee' ? 'Inhaber anmelden' : 'Mitarbeiter anmelden'}
            </Text>
          </Pressable>
+          {mode !== 'employee' ? <Pressable onPress={() => { setMode(mode === 'owner-login' ? 'owner-signup' : 'owner-login'); setError(''); }} style={styles.authSwitch}>
+            <Text style={[styles.authSwitchText, { color: colors.mutedForeground }]}>{mode === 'owner-login' ? 'Neue Firma?' : 'Bereits Inhaber?'}</Text>
+            <Text style={[styles.authSwitchLink, { color: colors.primary }]}>{mode === 'owner-login' ? ' Firmenkonto erstellen' : ' Anmelden'}</Text>
+          </Pressable> : null}
 
         <View style={styles.securityNote}>
           <Feather name="shield" size={16} color={colors.mutedForeground} />
           <Text style={[styles.securityText, { color: colors.mutedForeground }]}>
-            Sicherer Zugang für Mitarbeitende
+             Sicherer Zugang für Mitarbeitende und Inhaber
           </Text>
         </View>
       </View>
@@ -351,10 +389,14 @@ function DashboardScreen({
   employeeName,
   onLogout,
   colors,
+  role,
+  hasActiveSubscription,
 }: {
   employeeName: string;
   onLogout: () => void;
   colors: Palette;
+  role: 'owner' | 'manager' | 'employee';
+  hasActiveSubscription: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(() => new Date());
@@ -423,7 +465,7 @@ function DashboardScreen({
         <View style={styles.headerRow}>
           <View style={styles.headerBrand}>
             <BrandMark colors={colors} compact />
-            <Text style={styles.headerWordmark}>TIMEAPP</Text>
+            <Text style={styles.headerWordmark}>ZEITAPP</Text>
           </View>
           <Pressable
             testID="timeapp-logout"
@@ -449,6 +491,8 @@ function DashboardScreen({
         contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
         bottomOffset={24}
       >
+        {!hasActiveSubscription ? <View style={[styles.subscriptionNotice, { backgroundColor: colors.dangerSoft }]}><Feather name="alert-triangle" size={17} color={colors.danger} /><Text style={[styles.errorText, { color: colors.danger }]}>{role === 'owner' ? 'Das Firmenabo ist nicht aktiv. Wählen Sie unten einen Tarif, um ZEITAPP für Ihr Team freizuschalten.' : 'Das Firmenabo ist nicht aktiv. Bitte wenden Sie sich an den Firmeninhaber.'}</Text></View> : null}
+        {role === 'owner' && !hasActiveSubscription ? null : <>
         <View style={styles.timeCard}>
           <Text style={[styles.cardEyebrow, { color: colors.mutedForeground }]}>AKTUELLE UHRZEIT</Text>
           <Text style={[styles.currentTime, { color: colors.foreground }]}>{formatTime(now)}</Text>
@@ -605,31 +649,124 @@ function DashboardScreen({
             Änderungen werden automatisch gespeichert.
           </Text>
         </View>
+        </>}
+        {role === 'owner' || role === 'manager' ? <ManagementPanel role={role} colors={colors} /> : null}
       </KeyboardAwareScrollViewCompat>
     </View>
   );
 }
 
-export default function TimeAppScreen() {
+function OwnerOnboarding({ colors, onComplete }: { colors: Palette; onComplete: () => void }) {
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [focused, setFocused] = useState(false);
+  const createCompany = useCreateTimeAppCompany();
+  const submit = () => {
+    if (!name.trim()) {
+      setError('Bitte den Firmennamen angeben.');
+      return;
+    }
+    createCompany.mutate({ data: { name: name.trim() } }, {
+      onSuccess: onComplete,
+      onError: () => setError('Die Firma konnte nicht eingerichtet werden. Bitte erneut versuchen.'),
+    });
+  };
+  return <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.centerContent}>
+    <BrandMark colors={colors} />
+    <Text style={[styles.pageTitle, { color: colors.foreground }]}>Firma einrichten</Text>
+    <Text style={[styles.pageIntro, { color: colors.mutedForeground }]}>Fast geschafft: Geben Sie Ihrer Firma einen Namen. Ihren Firmen-Code erstellt ZEITAPP automatisch.</Text>
+    <View style={styles.form}>
+      <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Firmenname</Text>
+      <IconInput icon="briefcase" value={name} onChangeText={setName} placeholder="Ihre Firma" focused={focused} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} colors={colors} />
+      {error ? <Text style={[styles.inlineError, { color: colors.danger }]}>{error}</Text> : null}
+      <Pressable testID="zeitapp-create-company" onPress={submit} disabled={createCompany.isPending} style={[styles.loginButton, { backgroundColor: colors.primary, opacity: createCompany.isPending ? .6 : 1 }]}><Text style={styles.loginButtonText}>FIRMA ERSTELLEN</Text><Feather name="arrow-right" size={19} color={colors.white} /></Pressable>
+    </View>
+  </KeyboardAwareScrollViewCompat>;
+}
+
+function ManagementPanel({ role, colors }: { role: 'owner' | 'manager'; colors: Palette }) {
+  const queryClient = useQueryClient();
+  const members = useGetTimeAppCompanyMembers({ query: { queryKey: getGetTimeAppCompanyMembersQueryKey() } });
+  const reports = useGetTimeAppCompanyReports({ period: 'week' }, { query: { queryKey: getGetTimeAppCompanyReportsQueryKey({ period: 'week' }) } });
+  const plans = useGetTimeAppBillingPlans({ query: { queryKey: getGetTimeAppBillingPlansQueryKey(), enabled: role === 'owner' } });
+  const createMember = useCreateTimeAppCompanyMember();
+  const updateMember = useUpdateTimeAppCompanyMemberStatus();
+  const deleteMember = useDeleteTimeAppCompanyMember();
+  const checkout = useCreateTimeAppBillingCheckout();
+  const portal = useCreateTimeAppBillingPortal();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [newRole, setNewRole] = useState<'employee' | 'manager'>('employee');
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyMembersQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyReportsQueryKey({ period: 'week' }) });
+  };
+  const openUrl = (url: string | null) => {
+    if (!url) { Alert.alert('Nicht verfügbar', 'Es konnte keine Zahlungsseite erstellt werden.'); return; }
+    void Linking.openURL(url);
+  };
+  return <View style={styles.adminWrap}>
+    <View style={[styles.hoursCard, { backgroundColor: colors.surface, marginHorizontal: 0 }]}>
+      <Text style={[styles.cardEyebrow, { color: colors.primary }]}>VERWALTUNG</Text>
+      <Text style={[styles.hoursTitle, { color: colors.foreground }]}>Team & Berichte</Text>
+      {members.isError || reports.isError ? <Text style={[styles.inlineError, { color: colors.danger }]}>Teamdaten konnten nicht geladen werden. Bitte aktualisieren Sie die Seite.</Text> : null}
+      <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 14 }]}>MITGLIEDER</Text>
+      {(members.data?.members ?? []).map((member) => <View key={member.userId} style={styles.memberRow}>
+        <View style={styles.memberCopy}><Text style={[styles.historyDate, { color: colors.foreground }]}>{member.displayName}</Text><Text style={[styles.metaText, { color: colors.mutedForeground }]}>{member.employeeId} · {member.role} · {member.status}</Text></View>
+        {member.role !== 'owner' ? <View style={styles.memberActions}>
+          <Pressable onPress={() => updateMember.mutate({ userId: member.userId, data: { active: member.status !== 'active' } }, { onSuccess: refresh })}><Feather name={member.status === 'active' ? 'pause-circle' : 'play-circle'} size={19} color={colors.primary} /></Pressable>
+          <Pressable onPress={() => Alert.alert('Mitglied löschen?', `${member.displayName} und alle Zeitdaten werden gelöscht.`, [{ text: 'Abbrechen', style: 'cancel' }, { text: 'Löschen', style: 'destructive', onPress: () => deleteMember.mutate({ userId: member.userId }, { onSuccess: refresh }) }])}><Feather name="trash-2" size={18} color={colors.danger} /></Pressable>
+        </View> : null}
+      </View>)}
+      <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>MITGLIED HINZUFÜGEN</Text>
+      <TextInput style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} placeholder="Name" placeholderTextColor={colors.mutedForeground} value={name} onChangeText={setName} />
+      <TextInput style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} placeholder="E-Mail-Adresse" placeholderTextColor={colors.mutedForeground} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+      {role === 'owner' ? <View style={styles.rolePicker}>
+        {(['employee', 'manager'] as const).map((candidate) => <Pressable key={candidate} onPress={() => setNewRole(candidate)} style={[styles.roleOption, { borderColor: newRole === candidate ? colors.primary : colors.border, backgroundColor: newRole === candidate ? colors.successSoft : colors.surface }]}><Text style={[styles.metaText, { color: newRole === candidate ? colors.primary : colors.mutedForeground }]}>{candidate === 'employee' ? 'MITARBEITER' : 'MANAGER'}</Text></Pressable>)}
+      </View> : null}
+      <Pressable onPress={() => createMember.mutate({ data: { displayName: name, email, role: role === 'owner' ? newRole : 'employee' } }, { onSuccess: (result) => { setName(''); setEmail(''); setNewRole('employee'); refresh(); Alert.alert('Zugang erstellt', `Firmen-Code: ${result.companyCode}\nMitarbeiter-ID: ${result.member.employeeId}\nTemporäres Passwort: ${result.temporaryPassword}`); }, onError: () => Alert.alert('Nicht möglich', 'Das Mitglied konnte nicht erstellt werden.') })} style={[styles.smallButton, { backgroundColor: colors.primary }]}><Text style={styles.loginButtonText}>MITGLIED HINZUFÜGEN</Text></Pressable>
+      <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 20 }]}>WOCHENBERICHT</Text>
+      {(reports.data?.reports ?? []).map((report) => <View key={report.userId} style={styles.memberRow}><Text style={[styles.historyDate, { color: colors.foreground }]}>{report.displayName}</Text><Text style={[styles.historyDuration, { color: colors.primary }]}>{formatDuration(report.totalWorkSeconds)}</Text></View>)}
+    </View>
+    {role === 'owner' ? <View style={[styles.hoursCard, { backgroundColor: colors.surface, marginHorizontal: 0 }]}>
+      <Text style={[styles.cardEyebrow, { color: colors.primary }]}>ABRECHNUNG</Text>
+      <Text style={[styles.hoursTitle, { color: colors.foreground }]}>Tarif & Zahlung</Text>
+      {plans.isError ? <Text style={[styles.inlineError, { color: colors.danger }]}>Tarife konnten nicht geladen werden.</Text> : null}
+      {(plans.data?.plans ?? []).map((plan) => <Pressable key={plan.id} onPress={() => checkout.mutate({ data: { priceId: plan.priceId } }, { onSuccess: (result) => openUrl(result.url), onError: () => Alert.alert('Nicht möglich', 'Checkout konnte nicht gestartet werden.') })} style={[styles.planRow, { borderColor: colors.border }]}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{plan.name ?? 'ZEITAPP Tarif'}</Text><Text style={[styles.metaText, { color: colors.mutedForeground }]}>{plan.description ?? 'Monatlicher Tarif'}</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></Pressable>)}
+      <Pressable onPress={() => portal.mutate({}, { onSuccess: (result) => openUrl(result.url), onError: () => Alert.alert('Nicht möglich', 'Kundenportal konnte nicht geöffnet werden.') })} style={[styles.smallButton, { backgroundColor: colors.brandMid }]}><Text style={styles.loginButtonText}>ZAHLUNG VERWALTEN</Text></Pressable>
+    </View> : null}
+  </View>;
+}
+
+export default function ZeitAppScreen() {
   const colors = useColors();
   const { isSignedIn, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const dashboard = useGetTimeAppMe({
     query: { queryKey: getGetTimeAppMeQueryKey(), enabled: Boolean(isSignedIn) },
   });
   const employeeName = dashboard.data?.employee.displayName ?? '';
+  const [newOwner, setNewOwner] = useState(false);
+  const role = dashboard.data?.employee.role;
+  const dashboardError = dashboard.error as { status?: number; data?: { code?: string } } | null;
+  const subscriptionBlocked = dashboardError?.status === 402 || dashboardError?.data?.code === 'SUBSCRIPTION_REQUIRED';
 
   const content = useMemo(
     () =>
-      isSignedIn ? (
+      isSignedIn && newOwner ? <OwnerOnboarding colors={colors} onComplete={() => { setNewOwner(false); void queryClient.invalidateQueries({ queryKey: getGetTimeAppMeQueryKey() }); }} /> : isSignedIn && dashboard.isLoading ? <View style={[styles.screen, styles.statusScreen, { backgroundColor: colors.background }]}><Text style={[styles.pageIntro, { color: colors.mutedForeground }]}>ZEITAPP wird geladen …</Text></View> : isSignedIn && dashboard.isError ? <View style={[styles.screen, styles.statusScreen, { backgroundColor: colors.background }]}><Feather name={subscriptionBlocked ? 'credit-card' : 'alert-circle'} size={30} color={colors.danger} /><Text style={[styles.pageTitle, { color: colors.foreground }]}>{subscriptionBlocked ? 'Firmenabo nicht aktiv' : 'Kein Firmenkonto'}</Text><Text style={[styles.pageIntro, { color: colors.mutedForeground }]}>{subscriptionBlocked ? 'Für diese Firma ist kein aktives Abonnement vorhanden. Bitte wenden Sie sich an den Firmeninhaber.' : 'Ihr Konto ist keiner Firma zugeordnet oder der Zugang ist nicht aktiv.'}</Text>{!subscriptionBlocked ? <Pressable onPress={() => setNewOwner(true)} style={[styles.smallButton, styles.statusButton, { backgroundColor: colors.primary }]}><Text style={styles.loginButtonText}>FIRMA EINRICHTEN</Text></Pressable> : null}<Pressable onPress={() => void signOut()} style={[styles.smallButton, styles.statusButton, { backgroundColor: colors.brandMid }]}><Text style={styles.loginButtonText}>ABMELDEN</Text></Pressable></View> : isSignedIn ? (
+        <>
         <DashboardScreen
           employeeName={employeeName}
           onLogout={() => void signOut()}
           colors={colors}
+          role={role ?? 'employee'}
+          hasActiveSubscription={dashboard.data?.company.hasActiveSubscription ?? false}
         />
+        </>
       ) : (
-        <LoginScreen colors={colors} />
+        <LoginScreen colors={colors} onOwnerCreated={() => setNewOwner(true)} />
       ),
-    [colors, employeeName, isSignedIn, signOut],
+    [colors, dashboard.isError, dashboard.isLoading, employeeName, isSignedIn, newOwner, queryClient, role, signOut, subscriptionBlocked],
   );
 
   return content;
@@ -817,6 +954,92 @@ const styles = StyleSheet.create({
   authSwitchLink: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  centerContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  statusScreen: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    gap: 12,
+  },
+  inlineError: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 10,
+  },
+  subscriptionNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginHorizontal: 22,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 12,
+  },
+  adminWrap: {
+    marginHorizontal: 22,
+    marginTop: 4,
+    gap: 16,
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D7E0E2',
+  },
+  memberCopy: {
+    flex: 1,
+  },
+  memberActions: {
+    flexDirection: 'row',
+    gap: 13,
+    marginLeft: 12,
+  },
+  smallInput: {
+    height: 43,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    marginTop: 9,
+  },
+  smallButton: {
+    alignItems: 'center',
+    borderRadius: 11,
+    marginTop: 11,
+    paddingVertical: 13,
+  },
+  statusButton: {
+    width: '100%',
+    maxWidth: 320,
+  },
+  rolePicker: {
+    flexDirection: 'row',
+    gap: 9,
+    marginTop: 10,
+  },
+  roleOption: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 11,
+  },
+  planRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 11,
+    padding: 12,
+    marginTop: 11,
   },
   dashboardHeader: {
     paddingHorizontal: 22,

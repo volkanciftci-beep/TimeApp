@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "TimeApp",
-    "slug": "timeapp",
+    "name": "ZeitApp",
+    "slug": "zeitapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/timeapp-icon.png",
-    "scheme": "timeapp",
+    "scheme": "zeitapp",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false
     },
     "android": {},
     "web": {
-      "name": "TIMEAPP",
-      "shortName": "TimeApp",
+      "name": "ZeitApp",
+      "shortName": "ZeitApp",
       "lang": "de-DE",
       "themeColor": "#102C3A",
       "backgroundColor": "#F5F7F8",

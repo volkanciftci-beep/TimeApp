@@ -6,11 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ClockStatus } from './clockStatus';
+import type { Company } from './company';
 import type { EmployeeProfile } from './employeeProfile';
 import type { Summary } from './summary';
 
 export interface TimeAppMeResponse {
   employee: EmployeeProfile;
+  company: Company;
   clock: ClockStatus;
   week: Summary;
   month: Summary;
