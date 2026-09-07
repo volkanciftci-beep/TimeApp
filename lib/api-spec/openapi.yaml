@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: timeapp
+    description: Authenticated employee time tracking
 paths:
   /healthz:
     get:
@@ -24,7 +26,140 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /timeapp/me:
+    get:
+      operationId: getTimeAppMe
+      tags: [timeapp]
+      summary: Get the signed-in employee dashboard
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Employee dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeAppMeResponse"
+        "401":
+          description: Authentication required
+  /timeapp/clock/start:
+    post:
+      operationId: startTimeAppWork
+      tags: [timeapp]
+      summary: Start the employee workday
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Workday started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClockMutationResponse"
+        "409":
+          description: A work session is already active
+  /timeapp/clock/stop:
+    post:
+      operationId: stopTimeAppWork
+      tags: [timeapp]
+      summary: End the active work session
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Workday ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClockMutationResponse"
+        "409":
+          description: No work session is active
+  /timeapp/breaks/start:
+    post:
+      operationId: startTimeAppBreak
+      tags: [timeapp]
+      summary: Start a break in the active work session
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Break started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClockMutationResponse"
+        "409":
+          description: A break is already active or no work session is active
+  /timeapp/breaks/stop:
+    post:
+      operationId: stopTimeAppBreak
+      tags: [timeapp]
+      summary: End the active break
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Break ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClockMutationResponse"
+        "409":
+          description: No break is active
+  /timeapp/history:
+    get:
+      operationId: getTimeAppHistory
+      tags: [timeapp]
+      summary: Get the employee's work history
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Work history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryResponse"
+  /timeapp/summary:
+    get:
+      operationId: getTimeAppSummary
+      tags: [timeapp]
+      summary: Get a weekly or monthly work summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [week, month]
+            default: week
+      responses:
+        "200":
+          description: Work summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Summary"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +168,134 @@ components:
           type: string
       required:
         - status
+    EmployeeProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+        employeeId:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [employee, admin]
+        hourlyRateCents:
+          type: integer
+      required: [userId, employeeId, email, displayName, role, hourlyRateCents]
+    BreakEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        durationSeconds:
+          type: integer
+      required: [id, startedAt, endedAt, durationSeconds]
+    HistoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        grossSeconds:
+          type: integer
+        breakSeconds:
+          type: integer
+        netSeconds:
+          type: integer
+        breaks:
+          type: array
+          items:
+            $ref: "#/components/schemas/BreakEntry"
+      required: [id, date, startedAt, endedAt, grossSeconds, breakSeconds, netSeconds, breaks]
+    ClockStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [off_duty, on_duty, on_break]
+        currentSessionId:
+          type: integer
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        activeSeconds:
+          type: integer
+        breakSeconds:
+          type: integer
+        todayNetSeconds:
+          type: integer
+      required: [status, currentSessionId, startedAt, activeSeconds, breakSeconds, todayNetSeconds]
+    Summary:
+      type: object
+      properties:
+        period:
+          type: string
+          enum: [week, month]
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        totalWorkSeconds:
+          type: integer
+        totalBreakSeconds:
+          type: integer
+        workingDays:
+          type: integer
+        averageWorkSeconds:
+          type: integer
+        estimatedGrossCents:
+          type: integer
+      required: [period, from, to, totalWorkSeconds, totalBreakSeconds, workingDays, averageWorkSeconds, estimatedGrossCents]
+    HistoryResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryEntry"
+      required: [entries]
+    TimeAppMeResponse:
+      type: object
+      properties:
+        employee:
+          $ref: "#/components/schemas/EmployeeProfile"
+        clock:
+          $ref: "#/components/schemas/ClockStatus"
+        week:
+          $ref: "#/components/schemas/Summary"
+        month:
+          $ref: "#/components/schemas/Summary"
+      required: [employee, clock, week, month]
+    ClockMutationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        clock:
+          $ref: "#/components/schemas/ClockStatus"
+      required: [message, clock]
 

@@ -1,6 +1,17 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useAuth, useSignIn, useSignUp } from '@clerk/expo';
+import {
+  getGetTimeAppHistoryQueryKey,
+  getGetTimeAppMeQueryKey,
+  useGetTimeAppHistory,
+  useGetTimeAppMe,
+  useStartTimeAppBreak,
+  useStartTimeAppWork,
+  useStopTimeAppBreak,
+  useStopTimeAppWork,
+} from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -16,16 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
 
-type ClockState = {
-  employeeName: string;
-  running: boolean;
-  startedAt: number | null;
-  todaySeconds: number;
-};
-
 type Palette = ReturnType<typeof useColors>;
-
-const STORAGE_KEY = 'timeapp-clock-state';
 
 function formatTime(date: Date) {
   return new Intl.DateTimeFormat('de-DE', {
@@ -130,28 +132,82 @@ function IconInput({
   );
 }
 
-function LoginScreen({
-  onLogin,
-  colors,
-}: {
-  onLogin: (name: string) => void;
-  colors: Palette;
-}) {
+function LoginScreen({ colors }: { colors: Palette }) {
   const insets = useSafeAreaInsets();
+  const { signIn } = useSignIn();
+  const { signUp } = useSignUp();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     Keyboard.dismiss();
     if (!identifier.trim() || !password.trim()) {
-      setError('Bitte E-Mail oder Mitarbeiter-ID und Passwort eingeben.');
+      setError('Bitte E-Mail-Adresse und Passwort eingeben.');
       return;
     }
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onLogin(identifier.toLowerCase().includes('max') ? 'Max Mustermann' : 'Anna Müller');
+
+    setLoading(true);
+    setError('');
+    try {
+      if (mode === 'signup') {
+        const result = await signUp.password({
+          emailAddress: identifier.trim(),
+          password,
+        });
+        if (result.error) {
+          setError(result.error.message || 'Die Registrierung konnte nicht gestartet werden.');
+          return;
+        }
+        await signUp.verifications.sendEmailCode();
+        setVerificationSent(true);
+      } else {
+        const result = await signIn.password({
+          emailAddress: identifier.trim(),
+          password,
+        });
+        if (result.error) {
+          setError(result.error.message || 'E-Mail-Adresse oder Passwort ist nicht korrekt.');
+          return;
+        }
+        if (signIn.status === 'complete') {
+          await signIn.finalize({ navigate: () => undefined });
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else {
+          setError('Für dieses Konto ist eine zusätzliche Bestätigung erforderlich.');
+        }
+      }
+    } catch {
+      setError('Die Anmeldung ist momentan nicht möglich. Bitte erneut versuchen.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifySignup = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await signUp.verifications.verifyEmailCode({ code: verificationCode });
+      if (result.error) {
+        setError(result.error.message || 'Der Bestätigungscode ist nicht korrekt.');
+        return;
+      }
+      if (signUp.status === 'complete') {
+        await signUp.finalize({ navigate: () => undefined });
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+      setError('Der Bestätigungscode konnte nicht geprüft werden.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -170,13 +226,17 @@ function LoginScreen({
 
       <View style={styles.loginContent}>
         <Text style={[styles.eyebrow, { color: colors.primary }]}>MITARBEITER-PORTAL</Text>
-        <Text style={[styles.pageTitle, { color: colors.foreground }]}>Mitarbeiter-Anmeldung</Text>
+         <Text style={[styles.pageTitle, { color: colors.foreground }]}>
+           {mode === 'login' ? 'Mitarbeiter-Anmeldung' : 'Mitarbeiterkonto erstellen'}
+         </Text>
         <Text style={[styles.pageIntro, { color: colors.mutedForeground }]}>
-          Melden Sie sich an, um Ihre Arbeitszeit zu erfassen.
+           {mode === 'login'
+             ? 'Melden Sie sich an, um Ihre Arbeitszeit zu erfassen.'
+             : 'Erstellen Sie ein persönliches Konto für TIMEAPP.'}
         </Text>
 
         <View style={styles.form}>
-          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>E-Mail oder Mitarbeiter-ID</Text>
+           <Text style={[styles.fieldLabel, { color: colors.foreground }]}>E-Mail-Adresse</Text>
           <IconInput
             icon="user"
             value={identifier}
@@ -184,7 +244,7 @@ function LoginScreen({
               setIdentifier(value);
               setError('');
             }}
-            placeholder="z. B. anna.mueller@firma.de"
+             placeholder="z. B. anna.mueller@firma.de"
             focused={focused === 'identifier'}
             onFocus={() => setFocused('identifier')}
             onBlur={() => setFocused(null)}
@@ -192,15 +252,15 @@ function LoginScreen({
             keyboardType="email-address"
           />
 
-          <View style={styles.labelRow}>
+           {mode === 'login' ? <View style={styles.labelRow}>
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Passwort</Text>
             <Pressable
               testID="timeapp-forgot-password"
-              onPress={() => Alert.alert('Passwort vergessen?', 'Wenden Sie sich bitte an Ihre Personalabteilung, um Ihr Passwort zurückzusetzen.')}
+               onPress={() => Alert.alert('Passwort vergessen?', 'Bitte nutzen Sie die Passwort-Wiederherstellung in Ihrem Clerk-Konto oder wenden Sie sich an Ihre Personalabteilung.')}
             >
               <Text style={[styles.forgotText, { color: colors.primary }]}>Passwort vergessen?</Text>
             </Pressable>
-          </View>
+           </View> : <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 18 }]}>Passwort</Text>}
           <IconInput
             icon="lock"
             value={password}
@@ -218,6 +278,23 @@ function LoginScreen({
             onTogglePassword={() => setShowPassword((current) => !current)}
           />
 
+           {verificationSent ? (
+             <>
+               <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 18 }]}>Bestätigungscode</Text>
+               <IconInput
+                 icon="check-circle"
+                 value={verificationCode}
+                 onChangeText={setVerificationCode}
+                 placeholder="Code aus Ihrer E-Mail"
+                 focused={focused === 'code'}
+                 onFocus={() => setFocused('code')}
+                 onBlur={() => setFocused(null)}
+                 colors={colors}
+                 keyboardType="default"
+               />
+             </>
+           ) : null}
+
           {error ? (
             <View style={[styles.errorRow, { backgroundColor: colors.dangerSoft }]}>
               <Feather name="alert-circle" size={16} color={colors.danger} />
@@ -229,16 +306,35 @@ function LoginScreen({
             testID="timeapp-login"
             accessibilityRole="button"
             accessibilityLabel="Anmelden"
-            onPress={submit}
+             onPress={verificationSent ? verifySignup : submit}
+             disabled={loading}
             style={({ pressed }) => [
               styles.loginButton,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.82 : 1 },
+               { backgroundColor: colors.primary, opacity: loading ? 0.55 : pressed ? 0.82 : 1 },
             ]}
           >
-            <Text style={styles.loginButtonText}>ANMELDEN</Text>
-            <Feather name="arrow-right" size={19} color={colors.white} />
+             <Text style={styles.loginButtonText}>
+               {verificationSent ? 'CODE BESTÄTIGEN' : mode === 'login' ? 'ANMELDEN' : 'REGISTRIEREN'}
+             </Text>
+             <Feather name={verificationSent ? 'check' : 'arrow-right'} size={19} color={colors.white} />
           </Pressable>
         </View>
+
+         <Pressable
+           onPress={() => {
+             setMode(mode === 'login' ? 'signup' : 'login');
+             setVerificationSent(false);
+             setError('');
+           }}
+           style={styles.authSwitch}
+         >
+           <Text style={[styles.authSwitchText, { color: colors.mutedForeground }]}>
+             {mode === 'login' ? 'Noch kein Konto?' : 'Bereits registriert?'}{' '}
+           </Text>
+           <Text style={[styles.authSwitchLink, { color: colors.primary }]}>
+             {mode === 'login' ? 'Konto erstellen' : 'Anmelden'}
+           </Text>
+         </Pressable>
 
         <View style={styles.securityNote}>
           <Feather name="shield" size={16} color={colors.mutedForeground} />
@@ -262,52 +358,63 @@ function DashboardScreen({
 }) {
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(() => new Date());
-  const [running, setRunning] = useState(false);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [todaySeconds, setTodaySeconds] = useState(7 * 3600 + 42 * 60);
-  const [hydrated, setHydrated] = useState(false);
+  const queryClient = useQueryClient();
+  const dashboard = useGetTimeAppMe({
+    query: { queryKey: getGetTimeAppMeQueryKey(), refetchInterval: 15_000 },
+  });
+  const history = useGetTimeAppHistory(undefined, {
+    query: { queryKey: getGetTimeAppHistoryQueryKey(), refetchInterval: 60_000 },
+  });
+  const startWorkMutation = useStartTimeAppWork();
+  const stopWorkMutation = useStopTimeAppWork();
+  const startBreakMutation = useStartTimeAppBreak();
+  const stopBreakMutation = useStopTimeAppBreak();
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((stored) => {
-        if (stored) {
-          const saved = JSON.parse(stored) as ClockState;
-          setRunning(saved.running);
-          setStartedAt(saved.startedAt);
-          setTodaySeconds(saved.todaySeconds);
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => setHydrated(true));
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    const state: ClockState = { employeeName, running, startedAt, todaySeconds };
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => undefined);
-  }, [employeeName, hydrated, running, startedAt, todaySeconds]);
-
-  const activeSeconds = running && startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0;
-  const displayedSeconds = todaySeconds + activeSeconds;
+  const clock = dashboard.data?.clock;
+  const running = clock?.status === 'on_duty' || clock?.status === 'on_break';
+  const onBreak = clock?.status === 'on_break';
+  const displayedSeconds = clock?.todayNetSeconds ?? 0;
   const greeting = now.getHours() < 12 ? 'Guten Morgen' : now.getHours() < 18 ? 'Guten Tag' : 'Guten Abend';
+
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetTimeAppMeQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: history.queryKey });
+  };
+
+  const showMutationError = () => {
+    Alert.alert('Aktion nicht möglich', 'Der Zeitstatus konnte nicht gespeichert werden. Bitte erneut versuchen.');
+  };
 
   const startWork = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setStartedAt(Date.now());
-    setRunning(true);
+    startWorkMutation.mutate(undefined, {
+      onSuccess: refresh,
+      onError: showMutationError,
+    });
   };
 
   const stopWork = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setTodaySeconds((current) => current + activeSeconds);
-    setStartedAt(null);
-    setRunning(false);
-    Alert.alert('Arbeitszeit beendet', `Heute erfasst: ${formatDuration(displayedSeconds)}`);
+    stopWorkMutation.mutate(undefined, {
+      onSuccess: (result) => {
+        refresh();
+        Alert.alert('Arbeitszeit beendet', `Heute erfasst: ${formatDuration(result.clock.todayNetSeconds)}`);
+      },
+      onError: showMutationError,
+    });
+  };
+
+  const toggleBreak = () => {
+    const mutation = onBreak ? stopBreakMutation : startBreakMutation;
+    mutation.mutate(undefined, {
+      onSuccess: refresh,
+      onError: showMutationError,
+    });
   };
 
   return (
@@ -330,7 +437,7 @@ function DashboardScreen({
           </Pressable>
         </View>
         <Text style={styles.greeting}>{greeting},</Text>
-        <Text style={styles.employeeName}>{employeeName}</Text>
+         <Text style={styles.employeeName}>{employeeName || 'Mitarbeiter'}</Text>
         <View style={styles.headerDateRow}>
           <Feather name="calendar" size={14} color="#AFC6C6" />
           <Text style={styles.headerDate}>{formatDate(now)}</Text>
@@ -346,9 +453,9 @@ function DashboardScreen({
           <Text style={[styles.cardEyebrow, { color: colors.mutedForeground }]}>AKTUELLE UHRZEIT</Text>
           <Text style={[styles.currentTime, { color: colors.foreground }]}>{formatTime(now)}</Text>
           <View style={styles.liveRow}>
-            <View style={[styles.liveDot, { backgroundColor: running ? colors.success : colors.mutedForeground }]} />
+             <View style={[styles.liveDot, { backgroundColor: running ? colors.success : colors.mutedForeground }]} />
             <Text style={[styles.liveLabel, { color: running ? colors.success : colors.mutedForeground }]}>
-              {running ? 'Arbeitszeit läuft' : 'Noch nicht eingestempelt'}
+               {onBreak ? 'Pause läuft' : running ? 'Arbeitszeit läuft' : 'Noch nicht eingestempelt'}
             </Text>
           </View>
         </View>
@@ -379,7 +486,7 @@ function DashboardScreen({
             testID="timeapp-stop-work"
             accessibilityRole="button"
             accessibilityLabel="Arbeit beenden"
-            disabled={!running}
+             disabled={!running}
             onPress={stopWork}
             style={({ pressed }) => [
               styles.clockButton,
@@ -395,6 +502,28 @@ function DashboardScreen({
             </View>
             <Feather name="chevron-right" size={22} color="#F7D9D9" />
           </Pressable>
+
+           {running ? (
+             <Pressable
+               testID="timeapp-toggle-break"
+               accessibilityRole="button"
+               accessibilityLabel={onBreak ? 'Pause beenden' : 'Pause starten'}
+               onPress={toggleBreak}
+               style={({ pressed }) => [
+                 styles.clockButton,
+                 { backgroundColor: colors.primary, opacity: pressed ? 0.82 : 1 },
+               ]}
+             >
+               <View style={styles.buttonIconCircle}>
+                 <Feather name={onBreak ? 'play' : 'pause'} size={18} color={colors.primary} />
+               </View>
+               <View style={styles.buttonCopy}>
+                 <Text style={styles.clockButtonTitle}>{onBreak ? 'PAUSE BEENDEN' : 'PAUSE STARTEN'}</Text>
+                 <Text style={styles.clockButtonCaption}>{onBreak ? 'Arbeitszeit fortsetzen' : 'Pause jetzt erfassen'}</Text>
+               </View>
+               <Feather name="chevron-right" size={22} color="#D7F2E3" />
+             </Pressable>
+           ) : null}
         </View>
 
         <View style={[styles.hoursCard, { backgroundColor: colors.surface }]}>
@@ -417,6 +546,59 @@ function DashboardScreen({
           </View>
         </View>
 
+        <View style={[styles.hoursCard, { backgroundColor: colors.surface }]}>
+          <View style={styles.hoursCardHeader}>
+            <View>
+              <Text style={[styles.cardEyebrow, { color: colors.mutedForeground }]}>AUSWERTUNG</Text>
+              <Text style={[styles.hoursTitle, { color: colors.foreground }]}>Woche & Monat</Text>
+            </View>
+            <Feather name="bar-chart-2" size={22} color={colors.primary} />
+          </View>
+          <View style={styles.summaryRow}>
+            <View>
+              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Diese Woche</Text>
+              <Text style={[styles.summaryValue, { color: colors.foreground }]}>
+                {formatDuration(dashboard.data?.week.totalWorkSeconds ?? 0)}
+              </Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View>
+              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Dieser Monat</Text>
+              <Text style={[styles.summaryValue, { color: colors.foreground }]}>
+                {formatDuration(dashboard.data?.month.totalWorkSeconds ?? 0)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.historyCard, { backgroundColor: colors.surface }]}>
+          <View style={styles.hoursCardHeader}>
+            <View>
+              <Text style={[styles.cardEyebrow, { color: colors.mutedForeground }]}>VERLAUF</Text>
+              <Text style={[styles.hoursTitle, { color: colors.foreground }]}>Letzte Arbeitstage</Text>
+            </View>
+            <Feather name="list" size={21} color={colors.primary} />
+          </View>
+          {(history.data?.entries ?? []).slice(0, 5).map((entry) => (
+            <View key={entry.id} style={styles.historyRow}>
+              <View style={styles.historyRowCopy}>
+                <Text style={[styles.historyDate, { color: colors.foreground }]}>
+                  {new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date(entry.date))}
+                </Text>
+                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+                  {new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(new Date(entry.startedAt))}
+                  {' – '}
+                  {entry.endedAt ? new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(new Date(entry.endedAt)) : 'läuft'}
+                </Text>
+              </View>
+              <Text style={[styles.historyDuration, { color: colors.primary }]}>{formatDuration(entry.netSeconds)}</Text>
+            </View>
+          ))}
+          {(history.data?.entries ?? []).length === 0 ? (
+            <Text style={[styles.emptyHistory, { color: colors.mutedForeground }]}>Noch keine Arbeitstage erfasst.</Text>
+          ) : null}
+        </View>
+
         <View style={styles.footerNote}>
           <Feather name="info" size={14} color={colors.mutedForeground} />
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
@@ -430,27 +612,24 @@ function DashboardScreen({
 
 export default function TimeAppScreen() {
   const colors = useColors();
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [employeeName, setEmployeeName] = useState('Anna Müller');
+  const { isSignedIn, signOut } = useAuth();
+  const dashboard = useGetTimeAppMe({
+    query: { queryKey: getGetTimeAppMeQueryKey(), enabled: Boolean(isSignedIn) },
+  });
+  const employeeName = dashboard.data?.employee.displayName ?? '';
 
   const content = useMemo(
     () =>
-      loggedIn ? (
+      isSignedIn ? (
         <DashboardScreen
           employeeName={employeeName}
-          onLogout={() => setLoggedIn(false)}
+          onLogout={() => void signOut()}
           colors={colors}
         />
       ) : (
-        <LoginScreen
-          onLogin={(name) => {
-            setEmployeeName(name);
-            setLoggedIn(true);
-          }}
-          colors={colors}
-        />
+        <LoginScreen colors={colors} />
       ),
-    [colors, employeeName, loggedIn],
+    [colors, employeeName, isSignedIn, signOut],
   );
 
   return content;
@@ -627,6 +806,18 @@ const styles = StyleSheet.create({
   securityText: {
     fontSize: 12,
   },
+  authSwitch: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  authSwitchText: {
+    fontSize: 12,
+  },
+  authSwitchLink: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   dashboardHeader: {
     paddingHorizontal: 22,
     paddingBottom: 25,
@@ -796,6 +987,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 9,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 22,
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 42,
+    backgroundColor: '#D9E1E4',
+  },
+  historyCard: {
+    marginHorizontal: 22,
+    marginTop: 21,
+    borderRadius: 18,
+    padding: 20,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFF3F3',
+  },
+  historyRowCopy: {
+    gap: 4,
+  },
+  historyDate: {
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  historyDuration: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  emptyHistory: {
+    fontSize: 12,
+    marginTop: 18,
   },
   metaText: {
     fontSize: 11,
