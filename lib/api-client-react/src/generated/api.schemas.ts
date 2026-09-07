@@ -34,6 +34,8 @@ export interface Company {
   subscriptionStatus: string;
   plan: string;
   hasActiveSubscription: boolean;
+  hasTeamAccess: boolean;
+  trialEndsAt: string;
 }
 
 export type CompanyMemberRole = typeof CompanyMemberRole[keyof typeof CompanyMemberRole];

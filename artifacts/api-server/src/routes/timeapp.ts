@@ -10,6 +10,8 @@ import type {
 } from "@workspace/api-zod";
 import { stripeService } from "../stripeService";
 import {
+  companyTrialEndsAt,
+  hasCompanyAccess,
   isActiveSubscriptionStatus,
   reconcileSubscriptionState,
 } from "../billingState";
@@ -96,7 +98,7 @@ const requireMembership: RequestHandler = async (req, res, next) => {
   const ownerBillingAccess =
     membership.employee.role === "owner" &&
     (req.path === "/timeapp/me" || req.path.startsWith("/timeapp/billing/"));
-  if (!hasActiveSubscription(membership.company) && !ownerBillingAccess) {
+  if (!hasCompanyAccess(membership.company) && !ownerBillingAccess) {
     res.status(402).json({
       error: "Für diese Firma ist kein aktives Abonnement vorhanden.",
       code: "SUBSCRIPTION_REQUIRED",
@@ -203,6 +205,8 @@ function companyResponse(company: typeof companies.$inferSelect): Company {
     subscriptionStatus: company.subscriptionStatus,
     plan: company.plan,
     hasActiveSubscription: hasActiveSubscription(company),
+    hasTeamAccess: hasCompanyAccess(company),
+    trialEndsAt: companyTrialEndsAt(company.createdAt),
   };
 }
 
@@ -306,7 +310,7 @@ function randomCode(prefix: string, length = 6) {
 }
 
 function randomPassword() {
-  return `Zeit-${randomCode("", 8)}!`;
+  return `Zeit-${randomCode("", 12)}!`;
 }
 
 function splitName(displayName: string) {

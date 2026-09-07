@@ -430,12 +430,14 @@ function DashboardScreen({
   colors,
   role,
   hasActiveSubscription,
+  hasTeamAccess,
 }: {
   employeeName: string;
   onLogout: () => void;
   colors: Palette;
   role: 'owner' | 'manager' | 'employee';
   hasActiveSubscription: boolean;
+  hasTeamAccess: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(() => new Date());
@@ -530,8 +532,8 @@ function DashboardScreen({
         contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
         bottomOffset={24}
       >
-        {!hasActiveSubscription ? <View style={[styles.subscriptionNotice, { backgroundColor: colors.dangerSoft }]}><Feather name="alert-triangle" size={17} color={colors.danger} /><Text style={[styles.errorText, { color: colors.danger }]}>{role === 'owner' ? 'Das Firmenabo ist nicht aktiv. Wählen Sie unten einen Tarif, um ZEITAPP für Ihr Team freizuschalten.' : 'Das Firmenabo ist nicht aktiv. Bitte wenden Sie sich an den Firmeninhaber.'}</Text></View> : null}
-        {role === 'owner' && !hasActiveSubscription ? null : <>
+        {!hasTeamAccess ? <View style={[styles.subscriptionNotice, { backgroundColor: colors.dangerSoft }]}><Feather name="alert-triangle" size={17} color={colors.danger} /><Text style={[styles.errorText, { color: colors.danger }]}>{role === 'owner' ? 'Das Firmenabo ist nicht aktiv. Wählen Sie unten einen Tarif, um ZEITAPP für Ihr Team freizuschalten.' : 'Das Firmenabo ist nicht aktiv. Bitte wenden Sie sich an den Firmeninhaber.'}</Text></View> : null}
+        {role === 'owner' && !hasTeamAccess ? null : <>
         <View style={styles.timeCard}>
           <Text style={[styles.cardEyebrow, { color: colors.mutedForeground }]}>AKTUELLE UHRZEIT</Text>
           <Text style={[styles.currentTime, { color: colors.foreground }]}>{formatTime(now)}</Text>
@@ -689,7 +691,7 @@ function DashboardScreen({
           </Text>
         </View>
         </>}
-        {role === 'owner' || role === 'manager' ? <ManagementPanel role={role} colors={colors} hasActiveSubscription={hasActiveSubscription} /> : null}
+        {role === 'owner' || role === 'manager' ? <ManagementPanel role={role} colors={colors} hasActiveSubscription={hasActiveSubscription} hasTeamAccess={hasTeamAccess} /> : null}
       </KeyboardAwareScrollViewCompat>
     </View>
   );
@@ -727,7 +729,7 @@ function OwnerOnboarding({ colors, onComplete }: { colors: Palette; onComplete: 
   </KeyboardAwareScrollViewCompat>;
 }
 
-function ManagementPanel({ role, colors, hasActiveSubscription }: { role: 'owner' | 'manager'; colors: Palette; hasActiveSubscription: boolean }) {
+function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }: { role: 'owner' | 'manager'; colors: Palette; hasActiveSubscription: boolean; hasTeamAccess: boolean }) {
   const queryClient = useQueryClient();
   const members = useGetTimeAppCompanyMembers({ query: { queryKey: getGetTimeAppCompanyMembersQueryKey() } });
   const reports = useGetTimeAppCompanyReports({ period: 'week' }, { query: { queryKey: getGetTimeAppCompanyReportsQueryKey({ period: 'week' }) } });
@@ -795,7 +797,7 @@ function ManagementPanel({ role, colors, hasActiveSubscription }: { role: 'owner
   };
   const billingPending = checkout.isPending || portal.isPending;
   return <View style={styles.adminWrap}>
-    {hasActiveSubscription ? <View style={[styles.hoursCard, { backgroundColor: colors.surface, marginHorizontal: 0 }]}>
+    {hasTeamAccess ? <View style={[styles.hoursCard, { backgroundColor: colors.surface, marginHorizontal: 0 }]}>
       <Text style={[styles.cardEyebrow, { color: colors.primary }]}>VERWALTUNG</Text>
       <Text style={[styles.hoursTitle, { color: colors.foreground }]}>Team & Berichte</Text>
       {members.isError || reports.isError ? <Text style={[styles.inlineError, { color: colors.danger }]}>Teamdaten konnten nicht geladen werden. Bitte aktualisieren Sie die Seite.</Text> : null}
@@ -867,12 +869,13 @@ export default function ZeitAppScreen() {
           colors={colors}
           role={role ?? 'employee'}
           hasActiveSubscription={dashboard.data?.company.hasActiveSubscription ?? false}
+          hasTeamAccess={dashboard.data?.company.hasTeamAccess ?? false}
         />
         </>
       ) : (
         <LoginScreen colors={colors} onOwnerCreated={() => setNewOwner(true)} />
       ),
-    [colors, dashboard.isError, dashboard.isLoading, employeeName, isSignedIn, newOwner, queryClient, role, signOut, subscriptionBlocked],
+    [colors, dashboard.data?.company.hasActiveSubscription, dashboard.data?.company.hasTeamAccess, dashboard.isError, dashboard.isLoading, employeeName, isSignedIn, newOwner, queryClient, role, signOut, subscriptionBlocked],
   );
 
   return content;

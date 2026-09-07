@@ -1,2 +1,3 @@
 - [Expo PWA base path](expo-pwa-base-path.md) — Path-based ZeitApp web exports need an explicit `/timeapp` route; `EXPO_BASE_URL` alone did not map Safari URLs.
 - [Billing state freshness](billing-state-freshness.md) — Never cache `/api` in the PWA; Stripe mirror lag must not overwrite webhook-confirmed active/trialing company state.
+- [Managed employee passwords](managed-employee-passwords.md) — Clerk requires generated employee passwords to be at least 15 characters in this tenant.
