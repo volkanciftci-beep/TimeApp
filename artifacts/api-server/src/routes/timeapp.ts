@@ -309,6 +309,11 @@ function splitName(displayName: string) {
   return { firstName: parts[0] || "Mitarbeiter", lastName: parts.slice(1).join(" ") || undefined };
 }
 
+function isManagedEmployeeAccount(user: Awaited<ReturnType<typeof clerkClient.users.getUser>>) {
+  if (user.publicMetadata?.zeitappAccountType === "managed_employee") return true;
+  return /^ZA-[A-Z2-9]{6}-(?:EMP|OWN)-[A-Z2-9]{6}$/.test(user.username ?? "");
+}
+
 async function uniqueCompanyCode() {
   for (let attempt = 0; attempt < 10; attempt += 1) {
     const code = randomCode("ZA-", 6);
@@ -346,7 +351,7 @@ router.post("/timeapp/onboarding/company", async (req, res) => {
     return;
   }
   const prospectiveOwner = await clerkClient.users.getUser(userId);
-  if (prospectiveOwner.username) {
+  if (isManagedEmployeeAccount(prospectiveOwner)) {
     res.status(403).json({ error: "Verwaltete Mitarbeiterkonten dürfen keine Firma anlegen." });
     return;
   }
@@ -543,6 +548,7 @@ router.post("/timeapp/company/members", requireRoles("owner", "manager"), async 
       password: temporaryPassword,
       firstName,
       lastName,
+      publicMetadata: { zeitappAccountType: "managed_employee" },
     });
     const [created] = await db
       .insert(employees)

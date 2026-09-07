@@ -668,7 +668,11 @@ function OwnerOnboarding({ colors, onComplete }: { colors: Palette; onComplete: 
     }
     createCompany.mutate({ data: { name: name.trim() } }, {
       onSuccess: onComplete,
-      onError: () => setError('Die Firma konnte nicht eingerichtet werden. Bitte erneut versuchen.'),
+      onError: (mutationError) => {
+        const apiData = (mutationError as { data?: { error?: unknown } }).data;
+        const apiMessage = typeof apiData?.error === 'string' ? apiData.error : null;
+        setError(apiMessage ?? 'Die Firma konnte nicht eingerichtet werden. Bitte erneut versuchen.');
+      },
     });
   };
   return <KeyboardAwareScrollViewCompat style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.centerContent}>
