@@ -25,6 +25,7 @@ import type {
   BillingPortalRequest,
   BillingUrlResponse,
   ClockMutationResponse,
+  CompanyLeaveRequestsResponse,
   CompanyMembersResponse,
   CompanyOnboardingResponse,
   CompanyReportsResponse,
@@ -39,6 +40,10 @@ import type {
   GetTimeAppSummaryParams,
   HealthStatus,
   HistoryResponse,
+  LeaveRequestCreate,
+  LeaveRequestDecision,
+  LeaveRequestResponse,
+  LeaveRequestsResponse,
   MemberCredentialsResponse,
   MemberResponse,
   MemberStatusRequest,
@@ -1431,6 +1436,303 @@ export function useGetTimeAppSchedule<TData = Awaited<ReturnType<typeof getTimeA
 
 
 
+
+export const getGetTimeAppLeaveRequestsUrl = () => {
+
+
+
+
+  return `/api/timeapp/leave-requests`
+}
+
+/**
+ * @summary Get the signed-in employee's leave history
+ */
+export const getTimeAppLeaveRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<LeaveRequestsResponse> => {
+
+  return customFetch<LeaveRequestsResponse>(getGetTimeAppLeaveRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppLeaveRequestsQueryKey = () => {
+    return [
+    `/api/timeapp/leave-requests`
+    ] as const;
+    }
+
+
+export const getGetTimeAppLeaveRequestsQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppLeaveRequests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppLeaveRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppLeaveRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppLeaveRequests>>> = ({ signal }) => getTimeAppLeaveRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppLeaveRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppLeaveRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppLeaveRequests>>>
+export type GetTimeAppLeaveRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the signed-in employee's leave history
+ */
+
+export function useGetTimeAppLeaveRequests<TData = Awaited<ReturnType<typeof getTimeAppLeaveRequests>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppLeaveRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppLeaveRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTimeAppLeaveRequestUrl = () => {
+
+
+
+
+  return `/api/timeapp/leave-requests`
+}
+
+/**
+ * @summary Create a leave request for the signed-in employee
+ */
+export const createTimeAppLeaveRequest = async (leaveRequestCreate: LeaveRequestCreate, options?: Parameters<typeof customFetch>[1]): Promise<LeaveRequestResponse> => {
+
+  return customFetch<LeaveRequestResponse>(getCreateTimeAppLeaveRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(leaveRequestCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateTimeAppLeaveRequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppLeaveRequest>>, TError,{data: BodyType<LeaveRequestCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTimeAppLeaveRequest>>, TError,{data: BodyType<LeaveRequestCreate>}, TContext> => {
+
+const mutationKey = ['createTimeAppLeaveRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTimeAppLeaveRequest>>, {data: BodyType<LeaveRequestCreate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTimeAppLeaveRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTimeAppLeaveRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createTimeAppLeaveRequest>>>
+    export type CreateTimeAppLeaveRequestMutationBody = BodyType<LeaveRequestCreate>
+    export type CreateTimeAppLeaveRequestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a leave request for the signed-in employee
+ */
+export const useCreateTimeAppLeaveRequest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTimeAppLeaveRequest>>, TError,{data: BodyType<LeaveRequestCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTimeAppLeaveRequest>>,
+        TError,
+        {data: BodyType<LeaveRequestCreate>},
+        TContext
+      > => {
+      return useMutation(getCreateTimeAppLeaveRequestMutationOptions(options));
+    }
+
+export const getGetTimeAppCompanyLeaveRequestsUrl = () => {
+
+
+
+
+  return `/api/timeapp/company/leave-requests`
+}
+
+/**
+ * @summary Get tenant leave requests visible to an owner or manager
+ */
+export const getTimeAppCompanyLeaveRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<CompanyLeaveRequestsResponse> => {
+
+  return customFetch<CompanyLeaveRequestsResponse>(getGetTimeAppCompanyLeaveRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppCompanyLeaveRequestsQueryKey = () => {
+    return [
+    `/api/timeapp/company/leave-requests`
+    ] as const;
+    }
+
+
+export const getGetTimeAppCompanyLeaveRequestsQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppCompanyLeaveRequests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyLeaveRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppCompanyLeaveRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppCompanyLeaveRequests>>> = ({ signal }) => getTimeAppCompanyLeaveRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyLeaveRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppCompanyLeaveRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppCompanyLeaveRequests>>>
+export type GetTimeAppCompanyLeaveRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get tenant leave requests visible to an owner or manager
+ */
+
+export function useGetTimeAppCompanyLeaveRequests<TData = Awaited<ReturnType<typeof getTimeAppCompanyLeaveRequests>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyLeaveRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppCompanyLeaveRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewTimeAppCompanyLeaveRequestUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/timeapp/company/leave-requests/${requestId}`
+}
+
+/**
+ * @summary Approve or reject a tenant leave request
+ */
+export const reviewTimeAppCompanyLeaveRequest = async (requestId: number,
+    leaveRequestDecision: LeaveRequestDecision, options?: Parameters<typeof customFetch>[1]): Promise<LeaveRequestResponse> => {
+
+  return customFetch<LeaveRequestResponse>(getReviewTimeAppCompanyLeaveRequestUrl(requestId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(leaveRequestDecision)
+  }
+);}
+
+
+
+
+
+export const getReviewTimeAppCompanyLeaveRequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewTimeAppCompanyLeaveRequest>>, TError,{requestId: number;data: BodyType<LeaveRequestDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewTimeAppCompanyLeaveRequest>>, TError,{requestId: number;data: BodyType<LeaveRequestDecision>}, TContext> => {
+
+const mutationKey = ['reviewTimeAppCompanyLeaveRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewTimeAppCompanyLeaveRequest>>, {requestId: number;data: BodyType<LeaveRequestDecision>}> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  reviewTimeAppCompanyLeaveRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewTimeAppCompanyLeaveRequestMutationResult = NonNullable<Awaited<ReturnType<typeof reviewTimeAppCompanyLeaveRequest>>>
+    export type ReviewTimeAppCompanyLeaveRequestMutationBody = BodyType<LeaveRequestDecision>
+    export type ReviewTimeAppCompanyLeaveRequestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve or reject a tenant leave request
+ */
+export const useReviewTimeAppCompanyLeaveRequest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewTimeAppCompanyLeaveRequest>>, TError,{requestId: number;data: BodyType<LeaveRequestDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewTimeAppCompanyLeaveRequest>>,
+        TError,
+        {requestId: number;data: BodyType<LeaveRequestDecision>},
+        TContext
+      > => {
+      return useMutation(getReviewTimeAppCompanyLeaveRequestMutationOptions(options));
+    }
 
 export const getGetTimeAppCompanyMemberScheduleUrl = (userId: string,) => {
 

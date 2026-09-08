@@ -2,6 +2,7 @@ import {
   boolean,
   date,
   integer,
+  index,
   jsonb,
   pgTable,
   serial,
@@ -89,5 +90,31 @@ export const weeklySchedules = pgTable("weekly_schedules", {
     table.companyId,
     table.userId,
     table.weekStart,
+  ),
+]);
+
+export const leaveRequests = pgTable("leave_requests", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => employees.userId, { onDelete: "cascade" }),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id, { onDelete: "cascade" }),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"),
+  reviewedBy: text("reviewed_by").references(() => employees.userId, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("leave_requests_company_status_idx").on(table.companyId, table.status),
+  index("leave_requests_company_user_dates_idx").on(
+    table.companyId,
+    table.userId,
+    table.startDate,
+    table.endDate,
   ),
 ]);

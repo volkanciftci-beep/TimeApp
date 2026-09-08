@@ -5,7 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { WeeklyScheduleDay } from './weeklyScheduleDay';
+import type { WeeklyScheduleDayUpdate } from './weeklyScheduleDayUpdate';
 
 export interface WeeklyScheduleUpdate {
   weekStart: Date;
@@ -13,5 +13,5 @@ export interface WeeklyScheduleUpdate {
      * @minItems 7
      * @maxItems 7
      */
-  days: WeeklyScheduleDay[];
+  days: WeeklyScheduleDayUpdate[];
 }

@@ -357,6 +357,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WeeklySchedule"
+  /timeapp/leave-requests:
+    get:
+      operationId: getTimeAppLeaveRequests
+      tags: [leave]
+      summary: Get the signed-in employee's leave history
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Personal leave requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestsResponse"
+    post:
+      operationId: createTimeAppLeaveRequest
+      tags: [leave]
+      summary: Create a leave request for the signed-in employee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveRequestCreate"
+      responses:
+        "201":
+          description: Created leave request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestResponse"
+  /timeapp/company/leave-requests:
+    get:
+      operationId: getTimeAppCompanyLeaveRequests
+      tags: [leave]
+      summary: Get tenant leave requests visible to an owner or manager
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Tenant leave requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyLeaveRequestsResponse"
+  /timeapp/company/leave-requests/{requestId}:
+    patch:
+      operationId: reviewTimeAppCompanyLeaveRequest
+      tags: [leave]
+      summary: Approve or reject a tenant leave request
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveRequestDecision"
+      responses:
+        "200":
+          description: Reviewed leave request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestResponse"
   /timeapp/company/members/{userId}/schedule:
     get:
       operationId: getTimeAppCompanyMemberSchedule
@@ -641,7 +714,10 @@ components:
           type: integer
           minimum: 0
           maximum: 720
-      required: [weekday, isWorking, startTime, endTime, breakMinutes]
+        isVacation:
+          type: boolean
+          description: True when an approved leave overlays this calendar day
+      required: [weekday, isWorking, startTime, endTime, breakMinutes, isVacation]
     WeeklySchedule:
       type: object
       properties:
@@ -668,8 +744,117 @@ components:
           minItems: 7
           maxItems: 7
           items:
-            $ref: "#/components/schemas/WeeklyScheduleDay"
+            $ref: "#/components/schemas/WeeklyScheduleDayUpdate"
       required: [weekStart, days]
+    WeeklyScheduleDayUpdate:
+      type: object
+      properties:
+        weekday:
+          type: integer
+          minimum: 1
+          maximum: 7
+        isWorking:
+          type: boolean
+        startTime:
+          type: string
+          nullable: true
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        endTime:
+          type: string
+          nullable: true
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        breakMinutes:
+          type: integer
+          minimum: 0
+          maximum: 720
+      required: [weekday, isWorking, startTime, endTime, breakMinutes]
+    LeaveRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        companyId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        reviewedBy:
+          type: string
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, companyId, startDate, endDate, description, status, reviewedBy, reviewedAt, createdAt, updatedAt]
+    CompanyLeaveRequest:
+      allOf:
+        - $ref: "#/components/schemas/LeaveRequest"
+        - type: object
+          properties:
+            displayName:
+              type: string
+            employeeId:
+              type: string
+          required: [displayName, employeeId]
+    LeaveRequestCreate:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        description:
+          type: string
+          maxLength: 500
+      required: [startDate, endDate]
+    LeaveRequestDecision:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+      required: [status]
+    LeaveRequestResponse:
+      type: object
+      properties:
+        request:
+          $ref: "#/components/schemas/LeaveRequest"
+      required: [request]
+    LeaveRequestsResponse:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveRequest"
+      required: [requests]
+    CompanyLeaveRequestsResponse:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompanyLeaveRequest"
+      required: [requests]
     CompanyReport:
       type: object
       properties:

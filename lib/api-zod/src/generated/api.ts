@@ -400,8 +400,110 @@ export const GetTimeAppScheduleResponse = zod.object({
   "isWorking": zod.boolean(),
   "startTime": zod.string().regex(getTimeAppScheduleResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(getTimeAppScheduleResponseDaysItemEndTimeRegExp).nullable(),
-  "breakMinutes": zod.number().int().min(getTimeAppScheduleResponseDaysItemBreakMinutesMin).max(getTimeAppScheduleResponseDaysItemBreakMinutesMax)
+  "breakMinutes": zod.number().int().min(getTimeAppScheduleResponseDaysItemBreakMinutesMin).max(getTimeAppScheduleResponseDaysItemBreakMinutesMax),
+  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day')
 })).min(getTimeAppScheduleResponseDaysMin).max(getTimeAppScheduleResponseDaysMax)
+})
+
+
+/**
+ * @summary Get the signed-in employee's leave history
+ */
+export const GetTimeAppLeaveRequestsResponse = zod.object({
+  "requests": zod.array(zod.object({
+  "id": zod.number().int(),
+  "userId": zod.string(),
+  "companyId": zod.number().int(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewedBy": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a leave request for the signed-in employee
+ */
+export const createTimeAppLeaveRequestBodyDescriptionMax = 500;
+
+
+
+export const CreateTimeAppLeaveRequestBody = zod.object({
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "description": zod.string().max(createTimeAppLeaveRequestBodyDescriptionMax).optional()
+})
+
+export const CreateTimeAppLeaveRequestResponse = zod.object({
+  "request": zod.object({
+  "id": zod.number().int(),
+  "userId": zod.string(),
+  "companyId": zod.number().int(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewedBy": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Get tenant leave requests visible to an owner or manager
+ */
+export const GetTimeAppCompanyLeaveRequestsResponse = zod.object({
+  "requests": zod.array(zod.object({
+  "id": zod.number().int(),
+  "userId": zod.string(),
+  "companyId": zod.number().int(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewedBy": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "displayName": zod.string(),
+  "employeeId": zod.string()
+})))
+})
+
+
+/**
+ * @summary Approve or reject a tenant leave request
+ */
+export const ReviewTimeAppCompanyLeaveRequestParams = zod.object({
+  "requestId": zod.coerce.number().int()
+})
+
+export const ReviewTimeAppCompanyLeaveRequestBody = zod.object({
+  "status": zod.enum(['approved', 'rejected'])
+})
+
+export const ReviewTimeAppCompanyLeaveRequestResponse = zod.object({
+  "request": zod.object({
+  "id": zod.number().int(),
+  "userId": zod.string(),
+  "companyId": zod.number().int(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewedBy": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
 })
 
 
@@ -432,7 +534,8 @@ export const GetTimeAppCompanyMemberScheduleResponse = zod.object({
   "isWorking": zod.boolean(),
   "startTime": zod.string().regex(getTimeAppCompanyMemberScheduleResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(getTimeAppCompanyMemberScheduleResponseDaysItemEndTimeRegExp).nullable(),
-  "breakMinutes": zod.number().int().min(getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin).max(getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax)
+  "breakMinutes": zod.number().int().min(getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin).max(getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax),
+  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day')
 })).min(getTimeAppCompanyMemberScheduleResponseDaysMin).max(getTimeAppCompanyMemberScheduleResponseDaysMax)
 })
 
@@ -487,7 +590,8 @@ export const UpdateTimeAppCompanyMemberScheduleResponse = zod.object({
   "isWorking": zod.boolean(),
   "startTime": zod.string().regex(updateTimeAppCompanyMemberScheduleResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(updateTimeAppCompanyMemberScheduleResponseDaysItemEndTimeRegExp).nullable(),
-  "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax)
+  "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax),
+  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day')
 })).min(updateTimeAppCompanyMemberScheduleResponseDaysMin).max(updateTimeAppCompanyMemberScheduleResponseDaysMax)
 })
 

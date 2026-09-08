@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { breaks, companies, employees, weeklySchedules, workSessions } from "@workspace/db/schema";
+import { breaks, companies, employees, leaveRequests, weeklySchedules, workSessions } from "@workspace/db/schema";
 import type {
   ClockStatus,
   Company,
@@ -27,6 +27,13 @@ import {
 import { createManagedEmployeePasswordResetHandler } from "../managedEmployeePasswordReset";
 import { provisionManagedEmployee } from "../managedEmployeeProvisioning";
 import { canManageWeeklySchedule, emptyScheduleDays, normalizeWeekStart, validateScheduleDays } from "../weeklySchedule";
+import {
+  applyApprovedLeave,
+  canReviewLeave,
+  validateLeaveDecision,
+  validateLeaveRequest,
+  workingDaysOnLeave,
+} from "../leaveRequests";
 
 const router = Router();
 const TIME_ZONE = "Europe/Berlin";
@@ -761,7 +768,23 @@ router.get("/timeapp/schedule", async (req, res) => {
     eq(weeklySchedules.userId, membership.employee.userId),
     eq(weeklySchedules.weekStart, weekStart),
   )).limit(1);
-  res.json({ userId: membership.employee.userId, weekStart, days: schedule?.days ?? emptyScheduleDays() });
+  const weekEnd = dateAtUtc(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+  const approvedLeaves = await db.select({
+    startDate: leaveRequests.startDate,
+    endDate: leaveRequests.endDate,
+  }).from(leaveRequests).where(and(
+    eq(leaveRequests.companyId, membership.company.id),
+    eq(leaveRequests.userId, membership.employee.userId),
+    eq(leaveRequests.status, "approved"),
+    lte(leaveRequests.startDate, weekEnd.toISOString().slice(0, 10)),
+    gte(leaveRequests.endDate, weekStart),
+  ));
+  res.json({
+    userId: membership.employee.userId,
+    weekStart,
+    days: applyApprovedLeave(schedule?.days ?? emptyScheduleDays(), weekStart, approvedLeaves),
+  });
 });
 
 router.get("/timeapp/company/members/:userId/schedule", requireRoles("owner", "manager"), async (req, res) => {
@@ -781,7 +804,23 @@ router.get("/timeapp/company/members/:userId/schedule", requireRoles("owner", "m
     eq(weeklySchedules.userId, target.userId),
     eq(weeklySchedules.weekStart, weekStart),
   )).limit(1);
-  res.json({ userId: target.userId, weekStart, days: schedule?.days ?? emptyScheduleDays() });
+  const weekEnd = dateAtUtc(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+  const approvedLeaves = await db.select({
+    startDate: leaveRequests.startDate,
+    endDate: leaveRequests.endDate,
+  }).from(leaveRequests).where(and(
+    eq(leaveRequests.companyId, membership.company.id),
+    eq(leaveRequests.userId, target.userId),
+    eq(leaveRequests.status, "approved"),
+    lte(leaveRequests.startDate, weekEnd.toISOString().slice(0, 10)),
+    gte(leaveRequests.endDate, weekStart),
+  ));
+  res.json({
+    userId: target.userId,
+    weekStart,
+    days: applyApprovedLeave(schedule?.days ?? emptyScheduleDays(), weekStart, approvedLeaves),
+  });
 });
 
 router.put("/timeapp/company/members/:userId/schedule", requireRoles("owner", "manager"), async (req, res) => {
@@ -798,6 +837,24 @@ router.put("/timeapp/company/members/:userId/schedule", requireRoles("owner", "m
   try {
     const weekStart = normalizeWeekStart(req.body?.weekStart);
     const days = validateScheduleDays(req.body?.days);
+    const weekEnd = dateAtUtc(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+    const approvedLeaves = await db.select({
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+    }).from(leaveRequests).where(and(
+      eq(leaveRequests.companyId, membership.company.id),
+      eq(leaveRequests.userId, target.userId),
+      eq(leaveRequests.status, "approved"),
+      lte(leaveRequests.startDate, weekEnd.toISOString().slice(0, 10)),
+      gte(leaveRequests.endDate, weekStart),
+    ));
+    const conflicts = workingDaysOnLeave(days, weekStart, approvedLeaves);
+    if (conflicts.length) {
+      return void res.status(409).json({
+        error: `An genehmigten Urlaubstagen kann keine Arbeitsschicht geplant werden: ${conflicts.join(", ")}`,
+      });
+    }
     const [schedule] = await db.insert(weeklySchedules).values({
       companyId: membership.company.id,
       userId: target.userId,
@@ -807,9 +864,115 @@ router.put("/timeapp/company/members/:userId/schedule", requireRoles("owner", "m
       target: [weeklySchedules.companyId, weeklySchedules.userId, weeklySchedules.weekStart],
       set: { days, updatedAt: new Date() },
     }).returning();
-    res.json({ userId: schedule.userId, weekStart: schedule.weekStart, days: schedule.days });
+    res.json({
+      userId: schedule.userId,
+      weekStart: schedule.weekStart,
+      days: applyApprovedLeave(schedule.days, weekStart, approvedLeaves),
+    });
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Wochenplan." });
+  }
+});
+
+router.get("/timeapp/leave-requests", async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  const requests = await db.select().from(leaveRequests).where(and(
+    eq(leaveRequests.companyId, membership.company.id),
+    eq(leaveRequests.userId, membership.employee.userId),
+  )).orderBy(desc(leaveRequests.createdAt));
+  res.json({ requests });
+});
+
+router.post("/timeapp/leave-requests", async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  try {
+    const input = validateLeaveRequest(req.body);
+    const [conflict] = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
+      eq(leaveRequests.companyId, membership.company.id),
+      eq(leaveRequests.userId, membership.employee.userId),
+      eq(leaveRequests.status, "approved"),
+      lte(leaveRequests.startDate, input.endDate),
+      gte(leaveRequests.endDate, input.startDate),
+    )).limit(1);
+    if (conflict) return void res.status(409).json({ error: "Für diesen Zeitraum besteht bereits genehmigter Urlaub." });
+    const [request] = await db.insert(leaveRequests).values({
+      companyId: membership.company.id,
+      userId: membership.employee.userId,
+      ...input,
+    }).returning();
+    res.status(201).json({ request });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Urlaubsantrag." });
+  }
+});
+
+router.get("/timeapp/company/leave-requests", requireRoles("owner", "manager"), async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  const rows = await db.select({
+    request: leaveRequests,
+    displayName: employees.displayName,
+    employeeId: employees.employeeId,
+    memberRole: employees.role,
+  }).from(leaveRequests).innerJoin(employees, and(
+    eq(employees.userId, leaveRequests.userId),
+    eq(employees.companyId, membership.company.id),
+  )).where(eq(leaveRequests.companyId, membership.company.id)).orderBy(desc(leaveRequests.createdAt));
+  res.json({
+    requests: rows
+      .filter((row) => canReviewLeave(membership.employee.role, row.memberRole))
+      .map((row) => ({ ...row.request, displayName: row.displayName, employeeId: row.employeeId })),
+  });
+});
+
+router.patch("/timeapp/company/leave-requests/:requestId", requireRoles("owner", "manager"), async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  const requestId = Number(Array.isArray(req.params.requestId) ? req.params.requestId[0] : req.params.requestId);
+  if (!Number.isInteger(requestId)) return void res.status(400).json({ error: "Ungültiger Antrag." });
+  try {
+    const status = validateLeaveDecision(req.body);
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx.select({
+        request: leaveRequests,
+        memberRole: employees.role,
+      }).from(leaveRequests).innerJoin(employees, and(
+        eq(employees.userId, leaveRequests.userId),
+        eq(employees.companyId, membership.company.id),
+      )).where(and(
+        eq(leaveRequests.id, requestId),
+        eq(leaveRequests.companyId, membership.company.id),
+      )).limit(1);
+      if (!row || !canReviewLeave(membership.employee.role, row.memberRole)) return null;
+      if (row.request.status !== "pending") throw new Error("Über diesen Antrag wurde bereits entschieden.");
+      if (status === "approved") {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${row.request.userId}))`);
+        const [conflict] = await tx.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
+          eq(leaveRequests.companyId, membership.company.id),
+          eq(leaveRequests.userId, row.request.userId),
+          eq(leaveRequests.status, "approved"),
+          lte(leaveRequests.startDate, row.request.endDate),
+          gte(leaveRequests.endDate, row.request.startDate),
+        )).limit(1);
+        if (conflict) throw new Error("Für diesen Zeitraum besteht bereits genehmigter Urlaub.");
+      }
+      const [request] = await tx.update(leaveRequests).set({
+        status,
+        reviewedBy: membership.employee.userId,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(and(
+        eq(leaveRequests.id, requestId),
+        eq(leaveRequests.companyId, membership.company.id),
+      )).returning();
+      return request;
+    });
+    if (!updated) return void res.status(404).json({ error: "Urlaubsantrag nicht gefunden." });
+    res.json({ request: updated });
+  } catch (error) {
+    res.status(409).json({ error: error instanceof Error ? error.message : "Entscheidung nicht möglich." });
   }
 });
 

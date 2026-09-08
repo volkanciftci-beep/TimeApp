@@ -139,6 +139,8 @@ export interface WeeklyScheduleDay {
      * @maximum 720
      */
   breakMinutes: number;
+  /** True when an approved leave overlays this calendar day */
+  isVacation: boolean;
 }
 
 export interface WeeklySchedule {
@@ -151,13 +153,90 @@ export interface WeeklySchedule {
   days: WeeklyScheduleDay[];
 }
 
+export interface WeeklyScheduleDayUpdate {
+  /**
+     * @minimum 1
+     * @maximum 7
+     */
+  weekday: number;
+  isWorking: boolean;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  startTime: string | null;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  endTime: string | null;
+  /**
+     * @minimum 0
+     * @maximum 720
+     */
+  breakMinutes: number;
+}
+
 export interface WeeklyScheduleUpdate {
   weekStart: string;
   /**
      * @minItems 7
      * @maxItems 7
      */
-  days: WeeklyScheduleDay[];
+  days: WeeklyScheduleDayUpdate[];
+}
+
+export type LeaveRequestStatus = typeof LeaveRequestStatus[keyof typeof LeaveRequestStatus];
+
+
+export const LeaveRequestStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface LeaveRequest {
+  id: number;
+  userId: string;
+  companyId: number;
+  startDate: string;
+  endDate: string;
+  description: string | null;
+  status: LeaveRequestStatus;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CompanyLeaveRequest = LeaveRequest & {
+  displayName: string;
+  employeeId: string;
+};
+
+export interface LeaveRequestCreate {
+  startDate: string;
+  endDate: string;
+  /** @maxLength 500 */
+  description?: string;
+}
+
+export type LeaveRequestDecisionStatus = typeof LeaveRequestDecisionStatus[keyof typeof LeaveRequestDecisionStatus];
+
+
+export const LeaveRequestDecisionStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface LeaveRequestDecision {
+  status: LeaveRequestDecisionStatus;
+}
+
+export interface LeaveRequestResponse {
+  request: LeaveRequest;
+}
+
+export interface LeaveRequestsResponse {
+  requests: LeaveRequest[];
+}
+
+export interface CompanyLeaveRequestsResponse {
+  requests: CompanyLeaveRequest[];
 }
 
 export interface CompanyReport {

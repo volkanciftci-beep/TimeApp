@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface WeeklyScheduleDay {
+export interface WeeklyScheduleDayUpdate {
   /**
      * @minimum 1
      * @maximum 7
@@ -22,6 +22,4 @@ export interface WeeklyScheduleDay {
      * @maximum 720
      */
   breakMinutes: number;
-  /** True when an approved leave overlays this calendar day */
-  isVacation: boolean;
 }

@@ -5,6 +5,8 @@ import {
   getGetTimeAppHistoryQueryKey,
   getGetTimeAppCompanyMemberScheduleQueryKey,
   getGetTimeAppScheduleQueryKey,
+  getGetTimeAppLeaveRequestsQueryKey,
+  getGetTimeAppCompanyLeaveRequestsQueryKey,
   getGetTimeAppMeQueryKey,
   getGetTimeAppCompanyMembersQueryKey,
   getGetTimeAppCompanyReportsQueryKey,
@@ -20,6 +22,8 @@ import {
   useGetTimeAppCompanyReports,
   useGetTimeAppHistory,
   useGetTimeAppSchedule,
+  useGetTimeAppLeaveRequests,
+  useGetTimeAppCompanyLeaveRequests,
   useGetTimeAppCompanyMemberSchedule,
   useGetTimeAppMe,
   useResetTimeAppCompanyMemberTemporaryPassword,
@@ -29,6 +33,8 @@ import {
   useStopTimeAppWork,
   useUpdateTimeAppCompanyMemberStatus,
   useUpdateTimeAppCompanyMemberSchedule,
+  useCreateTimeAppLeaveRequest,
+  useReviewTimeAppCompanyLeaveRequest,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -56,6 +62,7 @@ type ScheduleDayForm = {
   startTime: string | null;
   endTime: string | null;
   breakMinutes: number;
+  isVacation: boolean;
 };
 const WEEKDAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 
@@ -84,6 +91,17 @@ function formatDate(date: Date) {
     year: 'numeric',
   }).format(date);
 }
+
+function shortDate(value: string) {
+  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    .format(new Date(`${value}T12:00:00.000Z`));
+}
+
+const LEAVE_STATUS = {
+  pending: { label: 'Ausstehend', color: 'warning' },
+  approved: { label: 'Genehmigt', color: 'success' },
+  rejected: { label: 'Abgelehnt', color: 'danger' },
+} as const;
 
 function formatDuration(totalSeconds: number) {
   const hours = Math.floor(totalSeconds / 3600);
@@ -726,6 +744,7 @@ function DashboardScreen({
         </View>
 
         {role !== 'owner' ? <WeeklyScheduleViewer colors={colors} /> : null}
+        {role !== 'owner' ? <LeaveRequestPanel colors={colors} /> : null}
         {role !== 'owner' ? <PasswordChangePanel colors={colors} /> : null}
 
         <View style={styles.footerNote}>
@@ -754,7 +773,7 @@ function ScheduleDays({ days, colors, editable, onChange }: {
     {days.map((day, index) => <View key={day.weekday} style={[styles.scheduleDay, { borderColor: colors.border }]}>
       <View style={styles.scheduleDayTop}>
         <Text style={[styles.historyDate, { color: colors.foreground }]}>{WEEKDAYS[index]}</Text>
-        {editable ? <Pressable
+        {day.isVacation ? <Text style={[styles.scheduleStatus, { color: colors.primary }]}>URLAUB</Text> : editable ? <Pressable
           onPress={() => changeDay(index, day.isWorking
             ? { isWorking: false, startTime: null, endTime: null, breakMinutes: 0 }
             : { isWorking: true, startTime: '08:00', endTime: '16:30', breakMinutes: 30 })}
@@ -762,7 +781,7 @@ function ScheduleDays({ days, colors, editable, onChange }: {
         ><Text style={[styles.metaText, { color: day.isWorking ? colors.primary : colors.mutedForeground }]}>{day.isWorking ? 'ARBEIT' : 'FREI'}</Text></Pressable>
           : <Text style={[styles.scheduleStatus, { color: day.isWorking ? colors.success : colors.mutedForeground }]}>{day.isWorking ? 'Arbeit' : 'Frei'}</Text>}
       </View>
-      {day.isWorking ? editable ? <View style={styles.scheduleInputs}>
+      {day.isVacation ? <Text style={[styles.metaText, { color: colors.primary }]}>Genehmigter Urlaub · keine Arbeitszeit</Text> : day.isWorking ? editable ? <View style={styles.scheduleInputs}>
         <TextInput value={day.startTime ?? ''} onChangeText={(value) => changeDay(index, { startTime: value })} placeholder="08:00" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
         <Text style={{ color: colors.mutedForeground }}>–</Text>
         <TextInput value={day.endTime ?? ''} onChangeText={(value) => changeDay(index, { endTime: value })} placeholder="16:30" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
@@ -770,6 +789,96 @@ function ScheduleDays({ days, colors, editable, onChange }: {
         <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Min. Pause</Text>
       </View> : <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{day.startTime} – {day.endTime}{day.breakMinutes ? ` · ${day.breakMinutes} Min. Pause` : ''}</Text> : null}
     </View>)}
+  </View>;
+}
+
+function LeaveRequestPanel({ colors }: { colors: Palette }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  const [description, setDescription] = useState('');
+  const queryClient = useQueryClient();
+  const requests = useGetTimeAppLeaveRequests({
+    query: {
+      queryKey: getGetTimeAppLeaveRequestsQueryKey(),
+      refetchInterval: 10_000,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const create = useCreateTimeAppLeaveRequest();
+  const submit = () => {
+    create.mutate({ data: { startDate, endDate, description: description.trim() || undefined } }, {
+      onSuccess: () => {
+        setDescription('');
+        void queryClient.invalidateQueries({ queryKey: getGetTimeAppLeaveRequestsQueryKey() });
+        Alert.alert('Urlaubsantrag gesendet', 'Der Antrag wurde zur Prüfung eingereicht.');
+      },
+      onError: (error) => {
+        const apiError = (error as { data?: { error?: string } })?.data?.error;
+        Alert.alert('Antrag nicht möglich', apiError ?? 'Der Urlaubsantrag konnte nicht erstellt werden.');
+      },
+    });
+  };
+  return <View style={[styles.hoursCard, { backgroundColor: colors.surface }]}>
+    <View style={styles.hoursCardHeader}>
+      <View><Text style={[styles.cardEyebrow, { color: colors.primary }]}>URLAUB & ABWESENHEIT</Text><Text style={[styles.hoursTitle, { color: colors.foreground }]}>Urlaub beantragen</Text></View>
+      <Feather name="sun" size={22} color={colors.primary} />
+    </View>
+    <View style={styles.leaveDateRow}>
+      <View style={styles.leaveDateField}><Text style={[styles.metaText, { color: colors.mutedForeground }]}>VON</Text><TextInput {...(Platform.OS === 'web' ? { type: 'date' } as never : {})} value={startDate} onChangeText={setStartDate} placeholder="JJJJ-MM-TT" placeholderTextColor={colors.mutedForeground} style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} /></View>
+      <View style={styles.leaveDateField}><Text style={[styles.metaText, { color: colors.mutedForeground }]}>BIS</Text><TextInput {...(Platform.OS === 'web' ? { type: 'date' } as never : {})} value={endDate} onChangeText={setEndDate} placeholder="JJJJ-MM-TT" placeholderTextColor={colors.mutedForeground} style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} /></View>
+    </View>
+    <TextInput value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Optionale Beschreibung" placeholderTextColor={colors.mutedForeground} style={[styles.leaveDescription, { borderColor: colors.border, color: colors.foreground }]} />
+    <Pressable disabled={create.isPending} onPress={submit} style={[styles.smallButton, { backgroundColor: colors.primary, opacity: create.isPending ? 0.6 : 1 }]}><Text style={styles.loginButtonText}>{create.isPending ? 'WIRD GESENDET …' : 'URLAUB BEANTRAGEN'}</Text></Pressable>
+    <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 18 }]}>MEINE ANTRÄGE</Text>
+    {(requests.data?.requests ?? []).map((request) => {
+      const status = LEAVE_STATUS[request.status];
+      const statusColor = status.color === 'success' ? colors.success : status.color === 'danger' ? colors.danger : colors.primary;
+      return <View key={request.id} style={[styles.leaveRequestRow, { borderColor: colors.border }]}>
+        <View style={styles.memberCopy}><Text style={[styles.historyDate, { color: colors.foreground }]}>{shortDate(request.startDate)} – {shortDate(request.endDate)}</Text><Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.description || 'Keine Beschreibung'}</Text></View>
+        <View style={[styles.leaveStatusPill, { backgroundColor: `${statusColor}1A` }]}><Text style={[styles.metaText, { color: statusColor }]}>{status.label}</Text></View>
+      </View>;
+    })}
+    {!requests.isLoading && (requests.data?.requests.length ?? 0) === 0 ? <Text style={[styles.emptyHistory, { color: colors.mutedForeground }]}>Noch keine Urlaubsanträge vorhanden.</Text> : null}
+  </View>;
+}
+
+function LeaveRequestManagement({ colors }: { colors: Palette }) {
+  const queryClient = useQueryClient();
+  const requests = useGetTimeAppCompanyLeaveRequests({
+    query: {
+      queryKey: getGetTimeAppCompanyLeaveRequestsQueryKey(),
+      refetchInterval: 10_000,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const review = useReviewTimeAppCompanyLeaveRequest();
+  const pending = (requests.data?.requests ?? []).filter((request) => request.status === 'pending');
+  const decide = (requestId: number, status: 'approved' | 'rejected') => {
+    review.mutate({ requestId, data: { status } }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyLeaveRequestsQueryKey() });
+        void queryClient.invalidateQueries({
+          predicate: (query) => String(query.queryKey[0]).includes('/schedule'),
+        });
+      },
+      onError: (error) => {
+        const apiError = (error as { data?: { error?: string } })?.data?.error;
+        Alert.alert('Entscheidung nicht möglich', apiError ?? 'Der Antrag konnte nicht bearbeitet werden.');
+      },
+    });
+  };
+  return <View style={[styles.scheduleEditor, { borderColor: colors.border }]}>
+    {pending.map((request) => <View key={request.id} style={[styles.leaveAdminRow, { borderColor: colors.border }]}>
+      <Text style={[styles.historyDate, { color: colors.foreground }]}>{request.displayName}</Text>
+      <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.employeeId} · {shortDate(request.startDate)} – {shortDate(request.endDate)}</Text>
+      {request.description ? <Text style={[styles.metaText, { color: colors.foreground, marginTop: 4 }]}>{request.description}</Text> : null}
+      <View style={styles.leaveActions}>
+        <Pressable disabled={review.isPending} onPress={() => decide(request.id, 'approved')} style={[styles.leaveAction, { backgroundColor: colors.successSoft }]}><Text style={[styles.metaText, { color: colors.success }]}>GENEHMIGEN</Text></Pressable>
+        <Pressable disabled={review.isPending} onPress={() => decide(request.id, 'rejected')} style={[styles.leaveAction, { backgroundColor: colors.dangerSoft }]}><Text style={[styles.metaText, { color: colors.danger }]}>ABLEHNEN</Text></Pressable>
+      </View>
+    </View>)}
+    {!requests.isLoading && pending.length === 0 ? <Text style={[styles.emptyHistory, { color: colors.mutedForeground }]}>Keine ausstehenden Urlaubsanträge.</Text> : null}
   </View>;
 }
 
@@ -1098,6 +1207,8 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
       </View>)}
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>WOCHENPLAN</Text>
       <WeeklyScheduleEditor role={role} members={members.data?.members ?? []} colors={colors} />
+      <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>URLAUBSANTRÄGE</Text>
+      <LeaveRequestManagement colors={colors} />
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>MITGLIED HINZUFÜGEN</Text>
       <TextInput style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} placeholder="Name" placeholderTextColor={colors.mutedForeground} value={name} onChangeText={setName} />
       <TextInput style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} placeholder="E-Mail-Adresse" placeholderTextColor={colors.mutedForeground} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
@@ -1560,6 +1671,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 7,
     width: 48,
+  },
+  leaveDateRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  leaveDateField: {
+    flex: 1,
+  },
+  leaveDescription: {
+    borderWidth: 1,
+    borderRadius: 9,
+    minHeight: 76,
+    marginTop: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    textAlignVertical: 'top',
+  },
+  leaveRequestRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingVertical: 11,
+  },
+  leaveStatusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  leaveAdminRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 11,
+  },
+  leaveActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  leaveAction: {
+    borderRadius: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
   },
   statusButton: {
     width: '100%',
