@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth, useClerk, useSignIn, useSignUp } from '@clerk/expo';
+import { useAuth, useClerk, useSignIn, useSignUp, useUser } from '@clerk/expo';
 import {
   getGetTimeAppHistoryQueryKey,
   getGetTimeAppMeQueryKey,
@@ -42,6 +42,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
 import { billingActionForSubscription } from '@/lib/billingAction';
+import { validatePasswordChange } from '@/lib/passwordChange';
 
 type Palette = ReturnType<typeof useColors>;
 
@@ -702,6 +703,8 @@ function DashboardScreen({
           ) : null}
         </View>
 
+        {role !== 'owner' ? <PasswordChangePanel colors={colors} /> : null}
+
         <View style={styles.footerNote}>
           <Feather name="info" size={14} color={colors.mutedForeground} />
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
@@ -713,6 +716,126 @@ function DashboardScreen({
       </KeyboardAwareScrollViewCompat>
     </View>
   );
+}
+
+function clerkPasswordError(error: unknown) {
+  const errors = (error as { errors?: Array<{ longMessage?: string; message?: string; code?: string }> })?.errors;
+  const first = errors?.[0];
+  if (first?.code === 'form_password_incorrect') {
+    return 'Das aktuelle Passwort ist nicht korrekt.';
+  }
+  return first?.longMessage || first?.message || 'Das Passwort konnte nicht geändert werden. Bitte versuchen Sie es erneut.';
+}
+
+function PasswordChangePanel({ colors }: { colors: Palette }) {
+  const { user } = useUser();
+  const [expanded, setExpanded] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+
+  const submit = async () => {
+    const validationError = validatePasswordChange(currentPassword, newPassword, confirmation);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    if (!user) {
+      setError('Das Clerk-Benutzerkonto ist noch nicht geladen.');
+      return;
+    }
+
+    setPending(true);
+    setError('');
+    try {
+      await user.updatePassword({
+        currentPassword,
+        newPassword,
+        signOutOfOtherSessions: true,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmation('');
+      setExpanded(false);
+      Alert.alert('Passwort geändert', 'Ihr neues Passwort wurde sicher bei Clerk gespeichert.');
+    } catch (changeError) {
+      setError(clerkPasswordError(changeError));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return <View style={[styles.passwordCard, { backgroundColor: colors.surface }]}>
+    <View style={styles.passwordCardHeader}>
+      <View style={[styles.hoursIcon, { backgroundColor: colors.successSoft }]}>
+        <Feather name="lock" size={19} color={colors.primary} />
+      </View>
+      <View style={styles.passwordCardCopy}>
+        <Text style={[styles.cardEyebrow, { color: colors.primary }]}>SICHERHEIT</Text>
+        <Text style={[styles.hoursTitle, { color: colors.foreground }]}>Passwort ändern</Text>
+        <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Ändern Sie Ihr temporäres Passwort in ein persönliches Passwort.</Text>
+      </View>
+    </View>
+    {!expanded ? <Pressable
+      testID="zeitapp-open-password-change"
+      accessibilityRole="button"
+      onPress={() => setExpanded(true)}
+      style={[styles.smallButton, { backgroundColor: colors.primary }]}
+    >
+      <Text style={styles.loginButtonText}>PASSWORT ÄNDERN</Text>
+    </Pressable> : <>
+      <TextInput
+        testID="zeitapp-current-password"
+        style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]}
+        placeholder="Aktuelles Passwort"
+        placeholderTextColor={colors.mutedForeground}
+        value={currentPassword}
+        onChangeText={setCurrentPassword}
+        secureTextEntry
+        autoCapitalize="none"
+      />
+      <TextInput
+        testID="zeitapp-new-password"
+        style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]}
+        placeholder="Neues Passwort (mind. 15 Zeichen)"
+        placeholderTextColor={colors.mutedForeground}
+        value={newPassword}
+        onChangeText={setNewPassword}
+        secureTextEntry
+        autoCapitalize="none"
+      />
+      <TextInput
+        testID="zeitapp-confirm-password"
+        style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]}
+        placeholder="Neues Passwort wiederholen"
+        placeholderTextColor={colors.mutedForeground}
+        value={confirmation}
+        onChangeText={setConfirmation}
+        secureTextEntry
+        autoCapitalize="none"
+      />
+      {error ? <Text style={[styles.inlineError, { color: colors.danger }]}>{error}</Text> : null}
+      <View style={styles.passwordActions}>
+        <Pressable
+          disabled={pending}
+          onPress={() => { setExpanded(false); setError(''); }}
+          style={[styles.passwordSecondaryButton, { borderColor: colors.border }]}
+        >
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>ABBRECHEN</Text>
+        </Pressable>
+        <Pressable
+          testID="zeitapp-submit-password-change"
+          disabled={pending}
+          onPress={() => void submit()}
+          style={[styles.passwordPrimaryButton, { backgroundColor: colors.primary, opacity: pending ? 0.6 : 1 }]}
+        >
+          <Text style={styles.loginButtonText}>{pending ? 'WIRD GESPEICHERT …' : 'SICHER SPEICHERN'}</Text>
+        </Pressable>
+      </View>
+    </>}
+  </View>;
 }
 
 function OwnerOnboarding({ colors, onComplete }: { colors: Palette; onComplete: () => void }) {
@@ -1227,6 +1350,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     marginTop: 12,
+  },
+  passwordCard: {
+    borderRadius: 18,
+    padding: 18,
+  },
+  passwordCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  passwordCardCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  passwordActions: {
+    flexDirection: 'row',
+    gap: 9,
+    marginTop: 11,
+  },
+  passwordSecondaryButton: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 11,
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 13,
+  },
+  passwordPrimaryButton: {
+    alignItems: 'center',
+    borderRadius: 11,
+    flex: 2,
+    justifyContent: 'center',
+    paddingVertical: 13,
   },
   statusButton: {
     width: '100%',
