@@ -119,3 +119,31 @@ export const leaveRequests = pgTable("leave_requests", {
     table.endDate,
   ),
 ]);
+
+export type MonthlyPlanDay = {
+  date: string;
+  status: "work" | "free" | "vacation" | "sick";
+  startTime: string | null;
+  endTime: string | null;
+  breakMinutes: number;
+};
+
+export const monthlyWorkPlans = pgTable("monthly_work_plans", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => employees.userId, { onDelete: "cascade" }),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id, { onDelete: "cascade" }),
+  monthStart: date("month_start").notNull(),
+  days: jsonb("days").$type<MonthlyPlanDay[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("monthly_work_plans_company_user_month_idx").on(
+    table.companyId,
+    table.userId,
+    table.monthStart,
+  ),
+]);

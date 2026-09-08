@@ -193,6 +193,50 @@ export interface WeeklyScheduleUpdate {
   days: WeeklyScheduleDayUpdate[];
 }
 
+export type MonthlyPlanDayStatus = typeof MonthlyPlanDayStatus[keyof typeof MonthlyPlanDayStatus];
+
+
+export const MonthlyPlanDayStatus = {
+  work: 'work',
+  free: 'free',
+  vacation: 'vacation',
+  sick: 'sick',
+} as const;
+
+export interface MonthlyPlanDay {
+  date: string;
+  status: MonthlyPlanDayStatus;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  startTime: string | null;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  endTime: string | null;
+  /**
+     * @minimum 0
+     * @maximum 720
+     */
+  breakMinutes: number;
+}
+
+export interface MonthlyWorkPlan {
+  userId: string;
+  monthStart: string;
+  /**
+     * @minItems 28
+     * @maxItems 31
+     */
+  days: MonthlyPlanDay[];
+  /** @minimum 0 */
+  plannedWorkMinutes: number;
+}
+
+export interface MonthlyWorkPlanUpdate {
+  /**
+     * @minItems 28
+     * @maxItems 31
+     */
+  days: MonthlyPlanDay[];
+}
+
 export type LeaveRequestType = typeof LeaveRequestType[keyof typeof LeaveRequestType];
 
 

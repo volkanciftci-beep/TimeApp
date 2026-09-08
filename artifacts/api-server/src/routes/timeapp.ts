@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { breaks, companies, employees, leaveRequests, weeklySchedules, workSessions } from "@workspace/db/schema";
+import { breaks, companies, employees, leaveRequests, monthlyWorkPlans, weeklySchedules, workSessions } from "@workspace/db/schema";
 import type {
   ClockStatus,
   Company,
@@ -34,6 +34,15 @@ import {
   validateLeaveRequest,
   workingDaysOnLeave,
 } from "../leaveRequests";
+import {
+  applyApprovedAbsences,
+  emptyMonthlyPlan,
+  monthEnd,
+  normalizeMonthStart,
+  plannedWorkMinutes,
+  validateMonthlyPlanDays,
+  workingDaysOnApprovedAbsence,
+} from "../monthlyWorkPlan";
 
 const router = Router();
 const TIME_ZONE = "Europe/Berlin";
@@ -874,6 +883,117 @@ router.put("/timeapp/company/members/:userId/schedule", requireRoles("owner", "m
     });
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Wochenplan." });
+  }
+});
+
+router.get("/timeapp/monthly-work-plans/:monthStart", async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  try {
+    const monthStart = normalizeMonthStart(Array.isArray(req.params.monthStart) ? req.params.monthStart[0] : req.params.monthStart);
+    const [plan] = await db.select().from(monthlyWorkPlans).where(and(
+      eq(monthlyWorkPlans.companyId, membership.company.id),
+      eq(monthlyWorkPlans.userId, membership.employee.userId),
+      eq(monthlyWorkPlans.monthStart, monthStart),
+    )).limit(1);
+    const approvedAbsences = await db.select({
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+      type: leaveRequests.type,
+    }).from(leaveRequests).where(and(
+      eq(leaveRequests.companyId, membership.company.id),
+      eq(leaveRequests.userId, membership.employee.userId),
+      eq(leaveRequests.status, "approved"),
+      lte(leaveRequests.startDate, monthEnd(monthStart)),
+      gte(leaveRequests.endDate, monthStart),
+    ));
+    const days = applyApprovedAbsences(plan?.days ?? emptyMonthlyPlan(monthStart), approvedAbsences);
+    res.json({ userId: membership.employee.userId, monthStart, days, plannedWorkMinutes: plannedWorkMinutes(days) });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Monat." });
+  }
+});
+
+router.get("/timeapp/company/members/:userId/monthly-work-plans/:monthStart", requireRoles("owner", "manager"), async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  const targetUserId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const [target] = await db.select().from(employees).where(and(
+    eq(employees.companyId, membership.company.id),
+    eq(employees.userId, targetUserId),
+  )).limit(1);
+  if (!target || !canManageWeeklySchedule(membership.employee.role, target.role)) {
+    return void res.status(404).json({ error: "Mitarbeiter nicht gefunden." });
+  }
+  try {
+    const monthStart = normalizeMonthStart(Array.isArray(req.params.monthStart) ? req.params.monthStart[0] : req.params.monthStart);
+    const [plan] = await db.select().from(monthlyWorkPlans).where(and(
+      eq(monthlyWorkPlans.companyId, membership.company.id),
+      eq(monthlyWorkPlans.userId, target.userId),
+      eq(monthlyWorkPlans.monthStart, monthStart),
+    )).limit(1);
+    const approvedAbsences = await db.select({
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+      type: leaveRequests.type,
+    }).from(leaveRequests).where(and(
+      eq(leaveRequests.companyId, membership.company.id),
+      eq(leaveRequests.userId, target.userId),
+      eq(leaveRequests.status, "approved"),
+      lte(leaveRequests.startDate, monthEnd(monthStart)),
+      gte(leaveRequests.endDate, monthStart),
+    ));
+    const days = applyApprovedAbsences(plan?.days ?? emptyMonthlyPlan(monthStart), approvedAbsences);
+    res.json({ userId: target.userId, monthStart, days, plannedWorkMinutes: plannedWorkMinutes(days) });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Monat." });
+  }
+});
+
+router.put("/timeapp/company/members/:userId/monthly-work-plans/:monthStart", requireRoles("owner", "manager"), async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  const targetUserId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const [target] = await db.select().from(employees).where(and(
+    eq(employees.companyId, membership.company.id),
+    eq(employees.userId, targetUserId),
+  )).limit(1);
+  if (!target || !canManageWeeklySchedule(membership.employee.role, target.role)) {
+    return void res.status(404).json({ error: "Mitarbeiter nicht gefunden." });
+  }
+  try {
+    const monthStart = normalizeMonthStart(Array.isArray(req.params.monthStart) ? req.params.monthStart[0] : req.params.monthStart);
+    const days = validateMonthlyPlanDays(req.body?.days, monthStart);
+    const approvedAbsences = await db.select({
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+      type: leaveRequests.type,
+    }).from(leaveRequests).where(and(
+      eq(leaveRequests.companyId, membership.company.id),
+      eq(leaveRequests.userId, target.userId),
+      eq(leaveRequests.status, "approved"),
+      lte(leaveRequests.startDate, monthEnd(monthStart)),
+      gte(leaveRequests.endDate, monthStart),
+    ));
+    const conflicts = workingDaysOnApprovedAbsence(days, approvedAbsences);
+    if (conflicts.length) {
+      return void res.status(409).json({
+        error: `An genehmigten Abwesenheitstagen kann keine Arbeit geplant werden: ${conflicts.join(", ")}`,
+      });
+    }
+    const [plan] = await db.insert(monthlyWorkPlans).values({
+      companyId: membership.company.id,
+      userId: target.userId,
+      monthStart,
+      days,
+    }).onConflictDoUpdate({
+      target: [monthlyWorkPlans.companyId, monthlyWorkPlans.userId, monthlyWorkPlans.monthStart],
+      set: { days, updatedAt: new Date() },
+    }).returning();
+    const effectiveDays = applyApprovedAbsences(plan.days, approvedAbsences);
+    res.json({ userId: target.userId, monthStart, days: effectiveDays, plannedWorkMinutes: plannedWorkMinutes(effectiveDays) });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Monatsplan." });
   }
 });
 

@@ -390,6 +390,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaveRequestResponse"
+  /timeapp/monthly-work-plans/{monthStart}:
+    get:
+      operationId: getTimeAppMonthlyWorkPlan
+      tags: [schedule]
+      summary: Get the signed-in employee's monthly work plan
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MonthStart"
+      responses:
+        "200":
+          description: Personal monthly work plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyWorkPlan"
+  /timeapp/company/members/{userId}/monthly-work-plans/{monthStart}:
+    get:
+      operationId: getTimeAppCompanyMemberMonthlyWorkPlan
+      tags: [schedule]
+      summary: Get a tenant member's monthly work plan
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MonthStart"
+      responses:
+        "200":
+          description: Member monthly work plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyWorkPlan"
+    put:
+      operationId: updateTimeAppCompanyMemberMonthlyWorkPlan
+      tags: [schedule]
+      summary: Create or replace a tenant member's monthly work plan
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/MonthStart"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MonthlyWorkPlanUpdate"
+      responses:
+        "200":
+          description: Saved monthly work plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyWorkPlan"
   /timeapp/company/leave-requests:
     get:
       operationId: getTimeAppCompanyLeaveRequests
@@ -533,6 +588,13 @@ components:
       name: weekStart
       in: query
       required: false
+      schema:
+        type: string
+        format: date
+    MonthStart:
+      name: monthStart
+      in: path
+      required: true
       schema:
         type: string
         format: date
@@ -773,6 +835,58 @@ components:
           minimum: 0
           maximum: 720
       required: [weekday, isWorking, startTime, endTime, breakMinutes]
+    MonthlyPlanDayStatus:
+      type: string
+      enum: [work, free, vacation, sick]
+    MonthlyPlanDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        status:
+          $ref: "#/components/schemas/MonthlyPlanDayStatus"
+        startTime:
+          type: string
+          nullable: true
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        endTime:
+          type: string
+          nullable: true
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        breakMinutes:
+          type: integer
+          minimum: 0
+          maximum: 720
+      required: [date, status, startTime, endTime, breakMinutes]
+    MonthlyWorkPlan:
+      type: object
+      properties:
+        userId:
+          type: string
+        monthStart:
+          type: string
+          format: date
+        days:
+          type: array
+          minItems: 28
+          maxItems: 31
+          items:
+            $ref: "#/components/schemas/MonthlyPlanDay"
+        plannedWorkMinutes:
+          type: integer
+          minimum: 0
+      required: [userId, monthStart, days, plannedWorkMinutes]
+    MonthlyWorkPlanUpdate:
+      type: object
+      properties:
+        days:
+          type: array
+          minItems: 28
+          maxItems: 31
+          items:
+            $ref: "#/components/schemas/MonthlyPlanDay"
+      required: [days]
     LeaveRequest:
       type: object
       properties:

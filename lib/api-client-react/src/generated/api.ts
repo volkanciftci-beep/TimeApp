@@ -47,6 +47,8 @@ import type {
   MemberCredentialsResponse,
   MemberResponse,
   MemberStatusRequest,
+  MonthlyWorkPlan,
+  MonthlyWorkPlanUpdate,
   Summary,
   TimeAppMeResponse,
   WeeklySchedule,
@@ -1583,6 +1585,239 @@ export const useCreateTimeAppLeaveRequest = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateTimeAppLeaveRequestMutationOptions(options));
+    }
+
+export const getGetTimeAppMonthlyWorkPlanUrl = (monthStart: string,) => {
+
+
+
+
+  return `/api/timeapp/monthly-work-plans/${monthStart}`
+}
+
+/**
+ * @summary Get the signed-in employee's monthly work plan
+ */
+export const getTimeAppMonthlyWorkPlan = async (monthStart: string, options?: Parameters<typeof customFetch>[1]): Promise<MonthlyWorkPlan> => {
+
+  return customFetch<MonthlyWorkPlan>(getGetTimeAppMonthlyWorkPlanUrl(monthStart),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppMonthlyWorkPlanQueryKey = (monthStart: string,) => {
+    return [
+    `/api/timeapp/monthly-work-plans/${monthStart}`
+    ] as const;
+    }
+
+
+export const getGetTimeAppMonthlyWorkPlanQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppMonthlyWorkPlan>>, TError = ErrorType<unknown>>(monthStart: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppMonthlyWorkPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppMonthlyWorkPlanQueryKey(monthStart);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppMonthlyWorkPlan>>> = ({ signal }) => getTimeAppMonthlyWorkPlan(monthStart, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: monthStart !== null && monthStart !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppMonthlyWorkPlan>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppMonthlyWorkPlanQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppMonthlyWorkPlan>>>
+export type GetTimeAppMonthlyWorkPlanQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the signed-in employee's monthly work plan
+ */
+
+export function useGetTimeAppMonthlyWorkPlan<TData = Awaited<ReturnType<typeof getTimeAppMonthlyWorkPlan>>, TError = ErrorType<unknown>>(
+ monthStart: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppMonthlyWorkPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppMonthlyWorkPlanQueryOptions(monthStart,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTimeAppCompanyMemberMonthlyWorkPlanUrl = (userId: string,
+    monthStart: string,) => {
+
+
+
+
+  return `/api/timeapp/company/members/${userId}/monthly-work-plans/${monthStart}`
+}
+
+/**
+ * @summary Get a tenant member's monthly work plan
+ */
+export const getTimeAppCompanyMemberMonthlyWorkPlan = async (userId: string,
+    monthStart: string, options?: Parameters<typeof customFetch>[1]): Promise<MonthlyWorkPlan> => {
+
+  return customFetch<MonthlyWorkPlan>(getGetTimeAppCompanyMemberMonthlyWorkPlanUrl(userId,monthStart),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppCompanyMemberMonthlyWorkPlanQueryKey = (userId: string,
+    monthStart: string,) => {
+    return [
+    `/api/timeapp/company/members/${userId}/monthly-work-plans/${monthStart}`
+    ] as const;
+    }
+
+
+export const getGetTimeAppCompanyMemberMonthlyWorkPlanQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppCompanyMemberMonthlyWorkPlan>>, TError = ErrorType<unknown>>(userId: string,
+    monthStart: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMemberMonthlyWorkPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppCompanyMemberMonthlyWorkPlanQueryKey(userId,monthStart);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppCompanyMemberMonthlyWorkPlan>>> = ({ signal }) => getTimeAppCompanyMemberMonthlyWorkPlan(userId,monthStart, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined && monthStart !== null && monthStart !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMemberMonthlyWorkPlan>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppCompanyMemberMonthlyWorkPlanQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppCompanyMemberMonthlyWorkPlan>>>
+export type GetTimeAppCompanyMemberMonthlyWorkPlanQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a tenant member's monthly work plan
+ */
+
+export function useGetTimeAppCompanyMemberMonthlyWorkPlan<TData = Awaited<ReturnType<typeof getTimeAppCompanyMemberMonthlyWorkPlan>>, TError = ErrorType<unknown>>(
+ userId: string,
+    monthStart: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMemberMonthlyWorkPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppCompanyMemberMonthlyWorkPlanQueryOptions(userId,monthStart,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTimeAppCompanyMemberMonthlyWorkPlanUrl = (userId: string,
+    monthStart: string,) => {
+
+
+
+
+  return `/api/timeapp/company/members/${userId}/monthly-work-plans/${monthStart}`
+}
+
+/**
+ * @summary Create or replace a tenant member's monthly work plan
+ */
+export const updateTimeAppCompanyMemberMonthlyWorkPlan = async (userId: string,
+    monthStart: string,
+    monthlyWorkPlanUpdate: MonthlyWorkPlanUpdate, options?: Parameters<typeof customFetch>[1]): Promise<MonthlyWorkPlan> => {
+
+  return customFetch<MonthlyWorkPlan>(getUpdateTimeAppCompanyMemberMonthlyWorkPlanUrl(userId,monthStart),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(monthlyWorkPlanUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateTimeAppCompanyMemberMonthlyWorkPlanMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberMonthlyWorkPlan>>, TError,{userId: string;monthStart: string;data: BodyType<MonthlyWorkPlanUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberMonthlyWorkPlan>>, TError,{userId: string;monthStart: string;data: BodyType<MonthlyWorkPlanUpdate>}, TContext> => {
+
+const mutationKey = ['updateTimeAppCompanyMemberMonthlyWorkPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTimeAppCompanyMemberMonthlyWorkPlan>>, {userId: string;monthStart: string;data: BodyType<MonthlyWorkPlanUpdate>}> = (props) => {
+          const {userId,monthStart,data} = props ?? {};
+
+          return  updateTimeAppCompanyMemberMonthlyWorkPlan(userId,monthStart,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTimeAppCompanyMemberMonthlyWorkPlanMutationResult = NonNullable<Awaited<ReturnType<typeof updateTimeAppCompanyMemberMonthlyWorkPlan>>>
+    export type UpdateTimeAppCompanyMemberMonthlyWorkPlanMutationBody = BodyType<MonthlyWorkPlanUpdate>
+    export type UpdateTimeAppCompanyMemberMonthlyWorkPlanMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create or replace a tenant member's monthly work plan
+ */
+export const useUpdateTimeAppCompanyMemberMonthlyWorkPlan = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberMonthlyWorkPlan>>, TError,{userId: string;monthStart: string;data: BodyType<MonthlyWorkPlanUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTimeAppCompanyMemberMonthlyWorkPlan>>,
+        TError,
+        {userId: string;monthStart: string;data: BodyType<MonthlyWorkPlanUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateTimeAppCompanyMemberMonthlyWorkPlanMutationOptions(options));
     }
 
 export const getGetTimeAppCompanyLeaveRequestsUrl = () => {

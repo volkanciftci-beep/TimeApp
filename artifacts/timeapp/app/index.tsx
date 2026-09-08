@@ -7,6 +7,8 @@ import {
   getGetTimeAppScheduleQueryKey,
   getGetTimeAppLeaveRequestsQueryKey,
   getGetTimeAppCompanyLeaveRequestsQueryKey,
+  getGetTimeAppMonthlyWorkPlanQueryKey,
+  getGetTimeAppCompanyMemberMonthlyWorkPlanQueryKey,
   getGetTimeAppMeQueryKey,
   getGetTimeAppCompanyMembersQueryKey,
   getGetTimeAppCompanyReportsQueryKey,
@@ -24,6 +26,8 @@ import {
   useGetTimeAppSchedule,
   useGetTimeAppLeaveRequests,
   useGetTimeAppCompanyLeaveRequests,
+  useGetTimeAppMonthlyWorkPlan,
+  useGetTimeAppCompanyMemberMonthlyWorkPlan,
   useGetTimeAppCompanyMemberSchedule,
   useGetTimeAppMe,
   useResetTimeAppCompanyMemberTemporaryPassword,
@@ -35,6 +39,7 @@ import {
   useUpdateTimeAppCompanyMemberSchedule,
   useCreateTimeAppLeaveRequest,
   useReviewTimeAppCompanyLeaveRequest,
+  useUpdateTimeAppCompanyMemberMonthlyWorkPlan,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -65,7 +70,49 @@ type ScheduleDayForm = {
   isVacation: boolean;
   absenceType: 'vacation' | 'sick' | null;
 };
+type MonthlyPlanDayForm = {
+  date: string;
+  status: 'work' | 'free' | 'vacation' | 'sick';
+  startTime: string | null;
+  endTime: string | null;
+  breakMinutes: number;
+};
 const WEEKDAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+const MONTHLY_STATUS = {
+  work: 'ARBEIT',
+  free: 'FREI',
+  vacation: 'URLAUB',
+  sick: 'KRANK',
+} as const;
+
+function currentMonthStart() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function shiftMonth(monthStart: string, amount: number) {
+  const date = new Date(`${monthStart}T12:00:00.000Z`);
+  date.setUTCMonth(date.getUTCMonth() + amount);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function monthTitle(monthStart: string) {
+  return new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' })
+    .format(new Date(`${monthStart}T12:00:00.000Z`))
+    .toLocaleUpperCase('de-DE');
+}
+
+function plannedMinutes(days: MonthlyPlanDayForm[]) {
+  return days.reduce((total, day) => {
+    if (day.status !== 'work' || !day.startTime || !day.endTime) return total;
+    const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+    return total + Math.max(0, minutes(day.endTime) - minutes(day.startTime) - day.breakMinutes);
+  }, 0);
+}
+
+function workMinutesLabel(minutes: number) {
+  return `${Math.floor(minutes / 60)} Std. ${minutes % 60} Min.`;
+}
 
 function weekTitle(weekStart?: string | Date) {
   if (!weekStart) return 'Aktuelle Kalenderwoche';
@@ -745,6 +792,7 @@ function DashboardScreen({
         </View>
 
         {role !== 'owner' ? <WeeklyScheduleViewer colors={colors} /> : null}
+        {role !== 'owner' ? <MonthlyWorkPlanViewer colors={colors} /> : null}
         {role !== 'owner' ? <LeaveRequestPanel colors={colors} /> : null}
         {role !== 'owner' ? <PasswordChangePanel colors={colors} /> : null}
 
@@ -867,7 +915,10 @@ function LeaveRequestManagement({ colors }: { colors: Palette }) {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyLeaveRequestsQueryKey() });
         void queryClient.invalidateQueries({
-          predicate: (query) => String(query.queryKey[0]).includes('/schedule'),
+          predicate: (query) => {
+            const key = String(query.queryKey[0]);
+            return key.includes('/schedule') || key.includes('/monthly-work-plans/');
+          },
         });
       },
       onError: (error) => {
@@ -900,6 +951,124 @@ function WeeklyScheduleViewer({ colors }: { colors: Palette }) {
     {schedule.isError ? <Text style={[styles.inlineError, { color: colors.danger }]}>Der Wochenplan konnte nicht geladen werden.</Text>
       : schedule.data ? <ScheduleDays days={schedule.data.days as ScheduleDayForm[]} colors={colors} />
         : <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Wochenplan wird geladen …</Text>}
+  </View>;
+}
+
+function MonthSelector({ monthStart, onChange, colors }: { monthStart: string; onChange: (value: string) => void; colors: Palette }) {
+  return <View style={styles.monthSelector}>
+    <Pressable accessibilityLabel="Vorheriger Monat" onPress={() => onChange(shiftMonth(monthStart, -1))} style={[styles.monthArrow, { borderColor: colors.border }]}><Feather name="chevron-left" size={18} color={colors.primary} /></Pressable>
+    <Text style={[styles.monthSelectorTitle, { color: colors.foreground }]}>{monthTitle(monthStart)}</Text>
+    <Pressable accessibilityLabel="Nächster Monat" onPress={() => onChange(shiftMonth(monthStart, 1))} style={[styles.monthArrow, { borderColor: colors.border }]}><Feather name="chevron-right" size={18} color={colors.primary} /></Pressable>
+  </View>;
+}
+
+function MonthlyPlanDays({ days, colors, editable, onChange }: {
+  days: MonthlyPlanDayForm[];
+  colors: Palette;
+  editable?: boolean;
+  onChange?: (days: MonthlyPlanDayForm[]) => void;
+}) {
+  const update = (index: number, patch: Partial<MonthlyPlanDayForm>) => onChange?.(
+    days.map((day, current) => current === index ? { ...day, ...patch } : day),
+  );
+  const chooseStatus = (index: number, status: MonthlyPlanDayForm['status']) => update(index, status === 'work'
+    ? { status, startTime: '08:00', endTime: '16:30', breakMinutes: 30 }
+    : { status, startTime: null, endTime: null, breakMinutes: 0 });
+  return <View style={styles.monthDays}>
+    {days.map((day, index) => {
+      const date = new Date(`${day.date}T12:00:00.000Z`);
+      const statusColor = day.status === 'sick' ? colors.danger : day.status === 'vacation' ? colors.primary : day.status === 'work' ? colors.success : colors.mutedForeground;
+      return <View key={day.date} style={[styles.monthDay, { borderColor: colors.border }]}>
+        <View style={styles.monthDayHeader}>
+          <Text style={[styles.monthDayDate, { color: colors.foreground }]}>{String(index + 1).padStart(2, '0')}</Text>
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(date)}</Text>
+          {!editable ? <Text style={[styles.monthDayStatus, { color: statusColor }]}>{MONTHLY_STATUS[day.status]}</Text> : null}
+        </View>
+        {editable ? <View style={styles.monthStatusPicker}>
+          {(Object.keys(MONTHLY_STATUS) as MonthlyPlanDayForm['status'][]).map((status) => <Pressable key={status} onPress={() => chooseStatus(index, status)} style={[styles.monthStatusOption, { borderColor: day.status === status ? (status === 'sick' ? colors.danger : colors.primary) : colors.border, backgroundColor: day.status === status ? colors.successSoft : colors.surface }]}>
+            <Text style={[styles.monthStatusOptionText, { color: day.status === status ? (status === 'sick' ? colors.danger : colors.primary) : colors.mutedForeground }]}>{MONTHLY_STATUS[status]}</Text>
+          </Pressable>)}
+        </View> : null}
+        {day.status === 'work' ? editable ? <View style={styles.scheduleInputs}>
+          <TextInput value={day.startTime ?? ''} onChangeText={(value) => update(index, { startTime: value })} placeholder="08:00" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
+          <Text style={{ color: colors.mutedForeground }}>–</Text>
+          <TextInput value={day.endTime ?? ''} onChangeText={(value) => update(index, { endTime: value })} placeholder="16:30" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
+          <TextInput value={String(day.breakMinutes)} onChangeText={(value) => update(index, { breakMinutes: Number(value.replace(/\D/g, '')) || 0 })} keyboardType="number-pad" style={[styles.scheduleBreakInput, { borderColor: colors.border, color: colors.foreground }]} />
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Min. Pause</Text>
+        </View> : <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{day.startTime} – {day.endTime}{day.breakMinutes ? ` · ${day.breakMinutes} Min. Pause` : ''}</Text>
+          : <Text style={[styles.metaText, { color: statusColor }]}>{day.status === 'sick' ? 'Krankmeldung · keine Arbeitszeit' : day.status === 'vacation' ? 'Urlaub · keine Arbeitszeit' : 'Freier Tag'}</Text>}
+      </View>;
+    })}
+  </View>;
+}
+
+function MonthlyWorkPlanViewer({ colors }: { colors: Palette }) {
+  const [monthStart, setMonthStart] = useState(currentMonthStart);
+  const plan = useGetTimeAppMonthlyWorkPlan(monthStart, {
+    query: {
+      queryKey: getGetTimeAppMonthlyWorkPlanQueryKey(monthStart),
+      refetchInterval: 10_000,
+      refetchOnWindowFocus: true,
+    },
+  });
+  return <View style={[styles.hoursCard, { backgroundColor: colors.surface }]}>
+    <Text style={[styles.cardEyebrow, { color: colors.primary }]}>MEIN ARBEITSPLAN</Text>
+    <MonthSelector monthStart={monthStart} onChange={setMonthStart} colors={colors} />
+    <View style={[styles.monthTotal, { backgroundColor: colors.successSoft }]}>
+      <Text style={[styles.metaText, { color: colors.primary }]}>GEPLANTE ARBEITSZEIT</Text>
+      <Text style={[styles.hoursTitle, { color: colors.foreground }]}>{workMinutesLabel(plan.data?.plannedWorkMinutes ?? 0)}</Text>
+    </View>
+    {plan.data ? <MonthlyPlanDays days={plan.data.days as MonthlyPlanDayForm[]} colors={colors} />
+      : <Text style={[styles.emptyHistory, { color: colors.mutedForeground }]}>Monatsplan wird geladen …</Text>}
+  </View>;
+}
+
+function MonthlyWorkPlanEditor({ role, members, colors }: {
+  role: 'owner' | 'manager';
+  members: Array<{ userId: string; displayName: string; role: string }>;
+  colors: Palette;
+}) {
+  const eligible = members.filter((member) => member.role !== 'owner' && (role === 'owner' || member.role === 'employee'));
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [monthStart, setMonthStart] = useState(currentMonthStart);
+  const [days, setDays] = useState<MonthlyPlanDayForm[]>([]);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!eligible.some((member) => member.userId === selectedUserId)) setSelectedUserId(eligible[0]?.userId ?? '');
+  }, [eligible, selectedUserId]);
+  const plan = useGetTimeAppCompanyMemberMonthlyWorkPlan(selectedUserId, monthStart, {
+    query: {
+      queryKey: getGetTimeAppCompanyMemberMonthlyWorkPlanQueryKey(selectedUserId, monthStart),
+      enabled: Boolean(selectedUserId),
+    },
+  });
+  useEffect(() => {
+    if (plan.data) setDays(plan.data.days as MonthlyPlanDayForm[]);
+  }, [plan.data]);
+  const update = useUpdateTimeAppCompanyMemberMonthlyWorkPlan();
+  const save = () => {
+    if (!selectedUserId) return;
+    update.mutate({ userId: selectedUserId, monthStart, data: { days } }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyMemberMonthlyWorkPlanQueryKey(selectedUserId, monthStart) });
+        Alert.alert('Monatsplan gespeichert', 'Der monatliche Arbeitsplan wurde dauerhaft gespeichert.');
+      },
+      onError: (error) => {
+        const apiError = (error as { data?: { error?: string } })?.data?.error;
+        Alert.alert('Nicht möglich', apiError ?? 'Der Monatsplan konnte nicht gespeichert werden.');
+      },
+    });
+  };
+  return <View style={[styles.scheduleEditor, { borderColor: colors.border }]}>
+    <View style={styles.scheduleMemberPicker}>
+      {eligible.map((member) => <Pressable key={member.userId} onPress={() => setSelectedUserId(member.userId)} style={[styles.scheduleMemberOption, { borderColor: selectedUserId === member.userId ? colors.primary : colors.border, backgroundColor: selectedUserId === member.userId ? colors.successSoft : colors.surface }]}><Text style={[styles.metaText, { color: selectedUserId === member.userId ? colors.primary : colors.mutedForeground }]}>{member.displayName}</Text></Pressable>)}
+    </View>
+    <MonthSelector monthStart={monthStart} onChange={setMonthStart} colors={colors} />
+    {plan.data && days.length ? <>
+      <View style={[styles.monthTotal, { backgroundColor: colors.successSoft }]}><Text style={[styles.metaText, { color: colors.primary }]}>GEPLANT</Text><Text style={[styles.hoursTitle, { color: colors.foreground }]}>{workMinutesLabel(plannedMinutes(days))}</Text></View>
+      <MonthlyPlanDays days={days} colors={colors} editable onChange={setDays} />
+      <Pressable disabled={update.isPending} onPress={save} style={[styles.smallButton, { backgroundColor: colors.primary, opacity: update.isPending ? 0.6 : 1 }]}><Text style={styles.loginButtonText}>{update.isPending ? 'WIRD GESPEICHERT …' : 'MONATSPLAN SPEICHERN'}</Text></Pressable>
+    </> : <Text style={[styles.emptyHistory, { color: colors.mutedForeground }]}>{eligible.length ? 'Monatsplan wird geladen …' : 'Keine verwaltbaren Mitarbeiter vorhanden.'}</Text>}
   </View>;
 }
 
@@ -1215,6 +1384,8 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
       </View>)}
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>WOCHENPLAN</Text>
       <WeeklyScheduleEditor role={role} members={members.data?.members ?? []} colors={colors} />
+      <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>MONATSARBEITSPLAN</Text>
+      <MonthlyWorkPlanEditor role={role} members={members.data?.members ?? []} colors={colors} />
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>ABWESENHEITSANTRÄGE</Text>
       <LeaveRequestManagement colors={colors} />
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>MITGLIED HINZUFÜGEN</Text>
@@ -1723,6 +1894,65 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 11,
     paddingVertical: 8,
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  monthArrow: {
+    borderWidth: 1,
+    borderRadius: 9,
+    padding: 7,
+  },
+  monthSelectorTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
+  monthTotal: {
+    borderRadius: 10,
+    padding: 11,
+    marginTop: 12,
+  },
+  monthDays: {
+    marginTop: 10,
+  },
+  monthDay: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 9,
+  },
+  monthDayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  monthDayDate: {
+    fontSize: 16,
+    fontWeight: '800',
+    width: 28,
+  },
+  monthDayStatus: {
+    fontSize: 11,
+    fontWeight: '800',
+    marginLeft: 'auto',
+  },
+  monthStatusPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 7,
+  },
+  monthStatusOption: {
+    borderWidth: 1,
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+  },
+  monthStatusOptionText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
   statusButton: {
     width: '100%',

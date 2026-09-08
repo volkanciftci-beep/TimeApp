@@ -461,6 +461,127 @@ export const CreateTimeAppLeaveRequestResponse = zod.object({
 
 
 /**
+ * @summary Get the signed-in employee's monthly work plan
+ */
+export const GetTimeAppMonthlyWorkPlanParams = zod.object({
+  "monthStart": zod.date()
+})
+
+export const getTimeAppMonthlyWorkPlanResponseDaysItemStartTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getTimeAppMonthlyWorkPlanResponseDaysItemEndTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getTimeAppMonthlyWorkPlanResponseDaysItemBreakMinutesMin = 0;
+export const getTimeAppMonthlyWorkPlanResponseDaysItemBreakMinutesMax = 720;
+
+export const getTimeAppMonthlyWorkPlanResponseDaysMin = 28;
+export const getTimeAppMonthlyWorkPlanResponseDaysMax = 31;
+
+export const getTimeAppMonthlyWorkPlanResponsePlannedWorkMinutesMin = 0;
+
+
+
+export const GetTimeAppMonthlyWorkPlanResponse = zod.object({
+  "userId": zod.string(),
+  "monthStart": zod.coerce.date(),
+  "days": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "status": zod.enum(['work', 'free', 'vacation', 'sick']),
+  "startTime": zod.string().regex(getTimeAppMonthlyWorkPlanResponseDaysItemStartTimeRegExp).nullable(),
+  "endTime": zod.string().regex(getTimeAppMonthlyWorkPlanResponseDaysItemEndTimeRegExp).nullable(),
+  "breakMinutes": zod.number().int().min(getTimeAppMonthlyWorkPlanResponseDaysItemBreakMinutesMin).max(getTimeAppMonthlyWorkPlanResponseDaysItemBreakMinutesMax)
+})).min(getTimeAppMonthlyWorkPlanResponseDaysMin).max(getTimeAppMonthlyWorkPlanResponseDaysMax),
+  "plannedWorkMinutes": zod.number().int().min(getTimeAppMonthlyWorkPlanResponsePlannedWorkMinutesMin)
+})
+
+
+/**
+ * @summary Get a tenant member's monthly work plan
+ */
+export const GetTimeAppCompanyMemberMonthlyWorkPlanParams = zod.object({
+  "userId": zod.coerce.string(),
+  "monthStart": zod.date()
+})
+
+export const getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemStartTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemEndTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMin = 0;
+export const getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMax = 720;
+
+export const getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysMin = 28;
+export const getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysMax = 31;
+
+export const getTimeAppCompanyMemberMonthlyWorkPlanResponsePlannedWorkMinutesMin = 0;
+
+
+
+export const GetTimeAppCompanyMemberMonthlyWorkPlanResponse = zod.object({
+  "userId": zod.string(),
+  "monthStart": zod.coerce.date(),
+  "days": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "status": zod.enum(['work', 'free', 'vacation', 'sick']),
+  "startTime": zod.string().regex(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemStartTimeRegExp).nullable(),
+  "endTime": zod.string().regex(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemEndTimeRegExp).nullable(),
+  "breakMinutes": zod.number().int().min(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMin).max(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMax)
+})).min(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysMin).max(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysMax),
+  "plannedWorkMinutes": zod.number().int().min(getTimeAppCompanyMemberMonthlyWorkPlanResponsePlannedWorkMinutesMin)
+})
+
+
+/**
+ * @summary Create or replace a tenant member's monthly work plan
+ */
+export const UpdateTimeAppCompanyMemberMonthlyWorkPlanParams = zod.object({
+  "userId": zod.coerce.string(),
+  "monthStart": zod.date()
+})
+
+export const updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemStartTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemEndTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemBreakMinutesMin = 0;
+export const updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemBreakMinutesMax = 720;
+
+export const updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysMin = 28;
+export const updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysMax = 31;
+
+
+
+export const UpdateTimeAppCompanyMemberMonthlyWorkPlanBody = zod.object({
+  "days": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "status": zod.enum(['work', 'free', 'vacation', 'sick']),
+  "startTime": zod.string().regex(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemStartTimeRegExp).nullable(),
+  "endTime": zod.string().regex(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemEndTimeRegExp).nullable(),
+  "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemBreakMinutesMax)
+})).min(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysMin).max(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysMax)
+})
+
+export const updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemStartTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemEndTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMin = 0;
+export const updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMax = 720;
+
+export const updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysMin = 28;
+export const updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysMax = 31;
+
+export const updateTimeAppCompanyMemberMonthlyWorkPlanResponsePlannedWorkMinutesMin = 0;
+
+
+
+export const UpdateTimeAppCompanyMemberMonthlyWorkPlanResponse = zod.object({
+  "userId": zod.string(),
+  "monthStart": zod.coerce.date(),
+  "days": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "status": zod.enum(['work', 'free', 'vacation', 'sick']),
+  "startTime": zod.string().regex(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemStartTimeRegExp).nullable(),
+  "endTime": zod.string().regex(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemEndTimeRegExp).nullable(),
+  "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMax)
+})).min(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysMin).max(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysMax),
+  "plannedWorkMinutes": zod.number().int().min(updateTimeAppCompanyMemberMonthlyWorkPlanResponsePlannedWorkMinutesMin)
+})
+
+
+/**
  * @summary Get tenant leave requests visible to an owner or manager
  */
 export const GetTimeAppCompanyLeaveRequestsResponse = zod.object({
