@@ -761,6 +761,11 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [newRole, setNewRole] = useState<'employee' | 'manager'>('employee');
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    companyCode: string;
+    member: { employeeId: string };
+    temporaryPassword: string;
+  } | null>(null);
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyMembersQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyReportsQueryKey({ period: 'week' }) });
@@ -816,9 +821,10 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
   };
   const billingPending = checkout.isPending || portal.isPending;
   const showCredentials = (result: { companyCode: string; member: { employeeId: string }; temporaryPassword: string }) => {
+    setCreatedCredentials(result);
     Alert.alert(
       'Temporäre Zugangsdaten',
-      `Firmen-Code: ${result.companyCode}\nMitarbeiter-ID: ${result.member.employeeId}\nTemporary password: ${result.temporaryPassword}\n\nDieses Passwort wird nur jetzt angezeigt.`,
+      `Firmen-Code: ${result.companyCode}\nMitarbeiter-ID: ${result.member.employeeId}\nTemporäres Passwort: ${result.temporaryPassword}\n\nDie Zugangsdaten werden zusätzlich direkt im Formular angezeigt.`,
     );
   };
   const resetPassword = (member: { userId: string; displayName: string }) => {
@@ -861,6 +867,19 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
         {(['employee', 'manager'] as const).map((candidate) => <Pressable key={candidate} onPress={() => setNewRole(candidate)} style={[styles.roleOption, { borderColor: newRole === candidate ? colors.primary : colors.border, backgroundColor: newRole === candidate ? colors.successSoft : colors.surface }]}><Text style={[styles.metaText, { color: newRole === candidate ? colors.primary : colors.mutedForeground }]}>{candidate === 'employee' ? 'MITARBEITER' : 'MANAGER'}</Text></Pressable>)}
       </View> : null}
       <Pressable onPress={() => createMember.mutate({ data: { displayName: name, email, role: role === 'owner' ? newRole : 'employee' } }, { onSuccess: (result) => { setName(''); setEmail(''); setNewRole('employee'); refresh(); showCredentials(result); }, onError: () => Alert.alert('Nicht möglich', 'Das Mitglied konnte nicht erstellt werden.') })} style={[styles.smallButton, { backgroundColor: colors.primary }]}><Text style={styles.loginButtonText}>MITGLIED HINZUFÜGEN</Text></Pressable>
+      {createdCredentials ? <View testID="zeitapp-created-member-credentials" style={[styles.credentialsCard, { backgroundColor: colors.successSoft, borderColor: colors.primary }]}>
+        <View style={styles.credentialsHeader}>
+          <Feather name="key" size={17} color={colors.primary} />
+          <Text style={[styles.credentialsTitle, { color: colors.primary }]}>TEMPORÄRE ZUGANGSDATEN</Text>
+        </View>
+        <Text style={[styles.credentialsLabel, { color: colors.mutedForeground }]}>Firmen-Code</Text>
+        <Text selectable style={[styles.credentialsValue, { color: colors.foreground }]}>{createdCredentials.companyCode}</Text>
+        <Text style={[styles.credentialsLabel, { color: colors.mutedForeground }]}>Mitarbeiter-ID</Text>
+        <Text selectable style={[styles.credentialsValue, { color: colors.foreground }]}>{createdCredentials.member.employeeId}</Text>
+        <Text style={[styles.credentialsLabel, { color: colors.mutedForeground }]}>Temporäres Passwort</Text>
+        <Text selectable style={[styles.credentialsPassword, { color: colors.foreground }]}>{createdCredentials.temporaryPassword}</Text>
+        <Text style={[styles.credentialsHint, { color: colors.mutedForeground }]}>Bitte geben Sie diese Daten sicher an den Mitarbeiter weiter. Das Passwort ist seinem neuen Konto bereits zugeordnet.</Text>
+      </View> : null}
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 20 }]}>WOCHENBERICHT</Text>
       {(reports.data?.reports ?? []).map((report) => <View key={report.userId} style={styles.memberRow}><Text style={[styles.historyDate, { color: colors.foreground }]}>{report.displayName}</Text><Text style={[styles.historyDuration, { color: colors.primary }]}>{formatDuration(report.totalWorkSeconds)}</Text></View>)}
     </View> : null}
@@ -1170,6 +1189,44 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     marginTop: 11,
     paddingVertical: 13,
+  },
+  credentialsCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    marginTop: 12,
+    padding: 14,
+  },
+  credentialsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  credentialsTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  credentialsLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 7,
+  },
+  credentialsValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  credentialsPassword: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginTop: 3,
+  },
+  credentialsHint: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 12,
   },
   statusButton: {
     width: '100%',
