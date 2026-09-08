@@ -44,6 +44,7 @@ export interface Company {
   plan: string;
   hasActiveSubscription: boolean;
   hasTeamAccess: boolean;
+  isDevelopmentMode: boolean;
   trialEndsAt: string;
 }
 

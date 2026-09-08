@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   companyTrialEndsAt,
   hasCompanyAccess,
+  hasTeamAccess,
+  isDevelopmentMode,
   isCompanyTrialActive,
   reconcileSubscriptionState,
 } from "./billingState.ts";
@@ -38,6 +40,28 @@ test("an active Stripe subscription keeps access after the company trial expires
   };
 
   assert.equal(hasCompanyAccess(company, new Date("2026-09-15T10:00:00.000Z")), true);
+});
+
+test("development mode grants team access after the company trial expires", () => {
+  const company = {
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    stripeSubscriptionId: null,
+    subscriptionStatus: "inactive",
+  };
+
+  assert.equal(isDevelopmentMode("development"), true);
+  assert.equal(hasTeamAccess(company, new Date("2026-09-08T00:00:00.000Z"), "development"), true);
+});
+
+test("production never bypasses an inactive subscription", () => {
+  const company = {
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    stripeSubscriptionId: null,
+    subscriptionStatus: "inactive",
+  };
+
+  assert.equal(isDevelopmentMode("production"), false);
+  assert.equal(hasTeamAccess(company, new Date("2026-09-08T00:00:00.000Z"), "production"), false);
 });
 
 test("a webhook-confirmed trialing company is not downgraded by a missing Stripe mirror row", () => {

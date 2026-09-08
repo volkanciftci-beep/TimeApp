@@ -451,10 +451,12 @@ components:
           type: boolean
         hasTeamAccess:
           type: boolean
+        isDevelopmentMode:
+          type: boolean
         trialEndsAt:
           type: string
           format: date-time
-      required: [id, name, companyCode, subscriptionStatus, plan, hasActiveSubscription, hasTeamAccess, trialEndsAt]
+      required: [id, name, companyCode, subscriptionStatus, plan, hasActiveSubscription, hasTeamAccess, isDevelopmentMode, trialEndsAt]
     CompanyMember:
       type: object
       properties:

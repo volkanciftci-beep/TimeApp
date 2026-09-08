@@ -2,3 +2,4 @@
 - [Billing state freshness](billing-state-freshness.md) — Never cache `/api` in the PWA; Stripe mirror lag must not overwrite webhook-confirmed active/trialing company state.
 - [Managed employee passwords](managed-employee-passwords.md) — Clerk requires generated employee passwords to be at least 15 characters in this tenant.
 - [Managed employee login identifiers](managed-employee-login-identifiers.md) — Clerk stores managed usernames here but password sign-in must resolve through the linked primary email.
+- [Preview subscription bypass](preview-subscription-bypass.md) — Team access may bypass billing only when the API process is explicitly in development mode.

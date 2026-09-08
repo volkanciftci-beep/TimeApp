@@ -11,7 +11,8 @@ import type {
 import { stripeService } from "../stripeService";
 import {
   companyTrialEndsAt,
-  hasCompanyAccess,
+  hasTeamAccess,
+  isDevelopmentMode,
   isActiveSubscriptionStatus,
   reconcileSubscriptionState,
 } from "../billingState";
@@ -106,7 +107,7 @@ const requireMembership: RequestHandler = async (req, res, next) => {
   const ownerBillingAccess =
     membership.employee.role === "owner" &&
     (req.path === "/timeapp/me" || req.path.startsWith("/timeapp/billing/"));
-  if (!hasCompanyAccess(membership.company) && !ownerBillingAccess) {
+  if (!hasTeamAccess(membership.company) && !ownerBillingAccess) {
     res.status(402).json({
       error: "Für diese Firma ist kein aktives Abonnement vorhanden.",
       code: "SUBSCRIPTION_REQUIRED",
@@ -213,7 +214,8 @@ function companyResponse(company: typeof companies.$inferSelect): Company {
     subscriptionStatus: company.subscriptionStatus,
     plan: company.plan,
     hasActiveSubscription: hasActiveSubscription(company),
-    hasTeamAccess: hasCompanyAccess(company),
+    hasTeamAccess: hasTeamAccess(company),
+    isDevelopmentMode: isDevelopmentMode(),
     trialEndsAt: companyTrialEndsAt(company.createdAt),
   };
 }

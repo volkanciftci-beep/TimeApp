@@ -32,6 +32,18 @@ export function hasCompanyAccess(
     isCompanyTrialActive(company.createdAt, now);
 }
 
+export function isDevelopmentMode(nodeEnv = process.env.NODE_ENV) {
+  return nodeEnv === "development";
+}
+
+export function hasTeamAccess(
+  company: SubscriptionState & { createdAt: Date },
+  now = new Date(),
+  nodeEnv = process.env.NODE_ENV,
+) {
+  return isDevelopmentMode(nodeEnv) || hasCompanyAccess(company, now);
+}
+
 export function reconcileSubscriptionState(
   company: SubscriptionState,
   mirrorSubscription: StripeMirrorSubscription | undefined,

@@ -51,6 +51,7 @@ export const GetTimeAppMeResponse = zod.object({
   "plan": zod.string(),
   "hasActiveSubscription": zod.boolean(),
   "hasTeamAccess": zod.boolean(),
+  "isDevelopmentMode": zod.boolean(),
   "trialEndsAt": zod.coerce.date()
 }),
   "clock": zod.object({
@@ -212,6 +213,7 @@ export const CreateTimeAppCompanyResponse = zod.object({
   "plan": zod.string(),
   "hasActiveSubscription": zod.boolean(),
   "hasTeamAccess": zod.boolean(),
+  "isDevelopmentMode": zod.boolean(),
   "trialEndsAt": zod.coerce.date()
 }),
   "employeeId": zod.string()
@@ -230,6 +232,7 @@ export const GetTimeAppCompanyResponse = zod.object({
   "plan": zod.string(),
   "hasActiveSubscription": zod.boolean(),
   "hasTeamAccess": zod.boolean(),
+  "isDevelopmentMode": zod.boolean(),
   "trialEndsAt": zod.coerce.date()
 }),
   "currentUser": zod.object({

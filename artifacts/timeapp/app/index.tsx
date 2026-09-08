@@ -446,6 +446,7 @@ function DashboardScreen({
   role,
   hasActiveSubscription,
   hasTeamAccess,
+  isDevelopmentMode,
 }: {
   employeeName: string;
   onLogout: () => void;
@@ -453,6 +454,7 @@ function DashboardScreen({
   role: 'owner' | 'manager' | 'employee';
   hasActiveSubscription: boolean;
   hasTeamAccess: boolean;
+  isDevelopmentMode: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(() => new Date());
@@ -547,6 +549,7 @@ function DashboardScreen({
         contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
         bottomOffset={24}
       >
+        {isDevelopmentMode ? <View style={[styles.subscriptionNotice, { backgroundColor: colors.successSoft }]}><Feather name="tool" size={17} color={colors.primary} /><Text style={[styles.errorText, { color: colors.primary }]}>Development-Modus: Team-Funktionen sind in dieser Preview ohne aktives Firmenabo freigeschaltet.</Text></View> : null}
         {!hasTeamAccess ? <View style={[styles.subscriptionNotice, { backgroundColor: colors.dangerSoft }]}><Feather name="alert-triangle" size={17} color={colors.danger} /><Text style={[styles.errorText, { color: colors.danger }]}>{role === 'owner' ? 'Das Firmenabo ist nicht aktiv. Wählen Sie unten einen Tarif, um ZEITAPP für Ihr Team freizuschalten.' : 'Das Firmenabo ist nicht aktiv. Bitte wenden Sie sich an den Firmeninhaber.'}</Text></View> : null}
         {role === 'owner' && !hasTeamAccess ? null : <>
         <View style={styles.timeCard}>
@@ -912,12 +915,13 @@ export default function ZeitAppScreen() {
           role={role ?? 'employee'}
           hasActiveSubscription={dashboard.data?.company.hasActiveSubscription ?? false}
           hasTeamAccess={dashboard.data?.company.hasTeamAccess ?? false}
+          isDevelopmentMode={dashboard.data?.company.isDevelopmentMode ?? false}
         />
         </>
       ) : (
         <LoginScreen colors={colors} onOwnerCreated={() => setNewOwner(true)} />
       ),
-    [colors, dashboard.data?.company.hasActiveSubscription, dashboard.data?.company.hasTeamAccess, dashboard.isError, dashboard.isLoading, employeeName, isSignedIn, newOwner, queryClient, role, signOut, subscriptionBlocked],
+    [colors, dashboard.data?.company.hasActiveSubscription, dashboard.data?.company.hasTeamAccess, dashboard.data?.company.isDevelopmentMode, dashboard.isError, dashboard.isLoading, employeeName, isSignedIn, newOwner, queryClient, role, signOut, subscriptionBlocked],
   );
 
   return content;
