@@ -25,6 +25,7 @@ import {
   createTemporaryPassword,
 } from "../managedEmployeePassword";
 import { createManagedEmployeePasswordResetHandler } from "../managedEmployeePasswordReset";
+import { provisionManagedEmployee } from "../managedEmployeeProvisioning";
 
 const router = Router();
 const TIME_ZONE = "Europe/Berlin";
@@ -613,35 +614,38 @@ router.post("/timeapp/company/members", requireRoles("owner", "manager"), async 
   }
   const employeeId = await uniqueEmployeeCode();
   const loginName = employeeLoginIdentifier(membership.company.companyCode, employeeId);
-  const temporaryPassword = createTemporaryPassword();
   const { firstName, lastName } = splitName(displayName);
-  let clerkUser: Awaited<ReturnType<typeof clerkClient.users.createUser>> | undefined;
-  try {
-    clerkUser = await clerkClient.users.createUser({
-      emailAddress: [email],
-      username: loginName,
-      password: temporaryPassword,
-      firstName,
-      lastName,
-      publicMetadata: { zeitappAccountType: "managed_employee" },
-    });
-    const [created] = await db
-      .insert(employees)
-      .values({
-        userId: clerkUser.id,
-        companyId: membership.company.id,
-        employeeId,
-        email,
-        displayName,
-        role: requestedRole,
-        hourlyRateCents: Math.max(0, hourlyRateCents),
-      })
-      .returning();
-    res.status(201).json({ member: memberResponse(created), companyCode: membership.company.companyCode, temporaryPassword });
-  } catch (error) {
-    if (clerkUser) await clerkClient.users.deleteUser(clerkUser.id).catch(() => undefined);
-    throw error;
-  }
+  const result = await provisionManagedEmployee(
+    membership.company.companyCode,
+    {
+      createTemporaryPassword,
+      createClerkUser: (password) => clerkClient.users.createUser({
+        emailAddress: [email],
+        username: loginName,
+        password,
+        firstName,
+        lastName,
+        publicMetadata: { zeitappAccountType: "managed_employee" },
+      }),
+      insertMember: async (clerkUserId) => {
+        const [created] = await db
+          .insert(employees)
+          .values({
+            userId: clerkUserId,
+            companyId: membership.company.id,
+            employeeId,
+            email,
+            displayName,
+            role: requestedRole,
+            hourlyRateCents: Math.max(0, hourlyRateCents),
+          })
+          .returning();
+        return memberResponse(created);
+      },
+      deleteClerkUser: (clerkUserId) => clerkClient.users.deleteUser(clerkUserId),
+    },
+  );
+  res.status(201).json(result);
 });
 
 router.post(

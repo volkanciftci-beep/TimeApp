@@ -3,8 +3,8 @@ name: Managed employee passwords
 description: Clerk password-policy constraint for owner-provisioned ZeitApp employee accounts.
 ---
 
-Generated temporary passwords for managed employee accounts must be at least 15 characters.
+Keep Clerk as the only password store for managed employee accounts; do not add password hashes to PostgreSQL. Generated temporary passwords must be at least 15 characters.
 
-**Why:** Clerk rejected the previous 14-character generated password with `form_password_length_too_short`, causing Mitarbeiter hinzufügen to return HTTP 422.
+**Why:** The user confirmed Clerk should remain the authentication system. A duplicate database hash would not be used by Clerk sign-in and would increase risk. Clerk also rejected the previous 14-character password with `form_password_length_too_short`.
 
-**How to apply:** Keep generated temporary passwords comfortably above 15 characters whenever changing employee provisioning; verify creation through the real Clerk-backed endpoint.
+**How to apply:** Generate one password per provisioned member, pass it directly to Clerk, and return it only in the successful creation response for one-time admin display. Keep it out of database rows and logs.
