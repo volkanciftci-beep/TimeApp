@@ -29,6 +29,8 @@ export * from './companyResponse';
 export * from './createCompanyRequest';
 export * from './createMemberRequest';
 export * from './createMemberRequestRole';
+export * from './employeeLoginIdentifierRequest';
+export * from './employeeLoginIdentifierResponse';
 export * from './employeeProfile';
 export * from './employeeProfileRole';
 export * from './getTimeAppCompanyReportsParams';

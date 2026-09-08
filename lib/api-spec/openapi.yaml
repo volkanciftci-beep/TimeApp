@@ -17,6 +17,29 @@ tags:
   - name: billing
     description: Company subscription management
 paths:
+  /timeapp/auth/employee-identifier:
+    post:
+      operationId: resolveTimeAppEmployeeIdentifier
+      tags: [timeapp]
+      summary: Resolve an employee or manager login identifier
+      description: Validates a company name or company code with an employee ID and returns the linked Clerk login identifier.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeLoginIdentifierRequest"
+      responses:
+        "200":
+          description: Canonical employee login identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeLoginIdentifierResponse"
+        "400":
+          description: Invalid login input
+        "404":
+          description: No matching active employee or manager
   /healthz:
     get:
       operationId: healthCheck
@@ -352,6 +375,20 @@ components:
       type: http
       scheme: bearer
   schemas:
+    EmployeeLoginIdentifierRequest:
+      type: object
+      properties:
+        companyCode:
+          type: string
+        employeeId:
+          type: string
+      required: [companyCode, employeeId]
+    EmployeeLoginIdentifierResponse:
+      type: object
+      properties:
+        identifier:
+          type: string
+      required: [identifier]
     HealthStatus:
       type: object
       properties:

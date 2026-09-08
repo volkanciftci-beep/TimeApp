@@ -5,6 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface EmployeeLoginIdentifierRequest {
+  companyCode: string;
+  employeeId: string;
+}
+
+export interface EmployeeLoginIdentifierResponse {
+  identifier: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

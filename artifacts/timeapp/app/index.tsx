@@ -7,6 +7,7 @@ import {
   getGetTimeAppCompanyMembersQueryKey,
   getGetTimeAppCompanyReportsQueryKey,
   getGetTimeAppBillingPlansQueryKey,
+  resolveTimeAppEmployeeIdentifier,
   useCreateTimeAppBillingCheckout,
   useCreateTimeAppBillingPortal,
   useCreateTimeAppCompany,
@@ -192,9 +193,18 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
         await signUp.verifications.sendEmailCode();
         setVerificationSent(true);
       } else {
+        const loginIdentifier =
+          mode === 'employee'
+            ? (
+                await resolveTimeAppEmployeeIdentifier({
+                  companyCode: companyCode.trim(),
+                  employeeId: employeeId.trim(),
+                })
+              ).identifier
+            : undefined;
         const result = await signIn.password({
           ...(mode === 'employee'
-            ? { identifier: `${companyCode.trim().toUpperCase()}-${employeeId.trim().toUpperCase()}` }
+            ? { identifier: loginIdentifier! }
             : { emailAddress: identifier.trim() }),
           password,
         });
@@ -224,7 +234,11 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
         }
       }
     } catch {
-      setError('Die Anmeldung ist momentan nicht möglich. Bitte erneut versuchen.');
+      setError(
+        mode === 'employee'
+          ? 'Firmenname oder Firmen-Code, Mitarbeiter-ID und Passwort prüfen.'
+          : 'Die Anmeldung ist momentan nicht möglich. Bitte erneut versuchen.',
+      );
     } finally {
       setLoading(false);
     }
@@ -299,8 +313,8 @@ function LoginScreen({ colors, onOwnerCreated }: { colors: Palette; onOwnerCreat
 
         <View style={styles.form}>
             {mode === 'employee' ? <>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Firmen-Code</Text>
-              <IconInput icon="briefcase" value={companyCode} onChangeText={setCompanyCode} placeholder="z. B. TA-ABC123" focused={focused === 'company'} onFocus={() => setFocused('company')} onBlur={() => setFocused(null)} colors={colors} />
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Firmenname oder Firmen-Code</Text>
+              <IconInput icon="briefcase" value={companyCode} onChangeText={setCompanyCode} placeholder="z. B. Vobusoft oder ZA-ABC123" focused={focused === 'company'} onFocus={() => setFocused('company')} onBlur={() => setFocused(null)} colors={colors} />
               <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 18 }]}>Mitarbeiter-ID</Text>
               <IconInput icon="user" value={employeeId} onChangeText={setEmployeeId} placeholder="z. B. EMP-ABC123" focused={focused === 'employee'} onFocus={() => setFocused('employee')} onBlur={() => setFocused(null)} colors={colors} />
             </> : <>

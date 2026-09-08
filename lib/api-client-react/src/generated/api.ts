@@ -31,6 +31,8 @@ import type {
   CompanyResponse,
   CreateCompanyRequest,
   CreateMemberRequest,
+  EmployeeLoginIdentifierRequest,
+  EmployeeLoginIdentifierResponse,
   GetTimeAppCompanyReportsParams,
   GetTimeAppHistoryParams,
   GetTimeAppSummaryParams,
@@ -69,6 +71,78 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getResolveTimeAppEmployeeIdentifierUrl = () => {
+
+
+
+
+  return `/api/timeapp/auth/employee-identifier`
+}
+
+/**
+ * Validates a company name or company code with an employee ID and returns the linked Clerk login identifier.
+ * @summary Resolve an employee or manager login identifier
+ */
+export const resolveTimeAppEmployeeIdentifier = async (employeeLoginIdentifierRequest: EmployeeLoginIdentifierRequest, options?: Parameters<typeof customFetch>[1]): Promise<EmployeeLoginIdentifierResponse> => {
+
+  return customFetch<EmployeeLoginIdentifierResponse>(getResolveTimeAppEmployeeIdentifierUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(employeeLoginIdentifierRequest)
+  }
+);}
+
+
+
+
+
+export const getResolveTimeAppEmployeeIdentifierMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveTimeAppEmployeeIdentifier>>, TError,{data: BodyType<EmployeeLoginIdentifierRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveTimeAppEmployeeIdentifier>>, TError,{data: BodyType<EmployeeLoginIdentifierRequest>}, TContext> => {
+
+const mutationKey = ['resolveTimeAppEmployeeIdentifier'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveTimeAppEmployeeIdentifier>>, {data: BodyType<EmployeeLoginIdentifierRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  resolveTimeAppEmployeeIdentifier(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveTimeAppEmployeeIdentifierMutationResult = NonNullable<Awaited<ReturnType<typeof resolveTimeAppEmployeeIdentifier>>>
+    export type ResolveTimeAppEmployeeIdentifierMutationBody = BodyType<EmployeeLoginIdentifierRequest>
+    export type ResolveTimeAppEmployeeIdentifierMutationError = ErrorType<void>
+
+    /**
+ * @summary Resolve an employee or manager login identifier
+ */
+export const useResolveTimeAppEmployeeIdentifier = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveTimeAppEmployeeIdentifier>>, TError,{data: BodyType<EmployeeLoginIdentifierRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveTimeAppEmployeeIdentifier>>,
+        TError,
+        {data: BodyType<EmployeeLoginIdentifierRequest>},
+        TContext
+      > => {
+      return useMutation(getResolveTimeAppEmployeeIdentifierMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

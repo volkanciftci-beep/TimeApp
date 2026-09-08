@@ -15,6 +15,10 @@ import {
   isActiveSubscriptionStatus,
   reconcileSubscriptionState,
 } from "../billingState";
+import {
+  employeeLoginIdentifier,
+  normalizeEmployeeLoginPart,
+} from "../employeeLogin";
 
 const router = Router();
 const TIME_ZONE = "Europe/Berlin";
@@ -350,6 +354,65 @@ async function mutationResponse(userId: string, companyId: number, message: stri
   return { message, clock: await clockStatus(userId, companyId) };
 }
 
+router.post("/timeapp/auth/employee-identifier", async (req, res) => {
+  const companyInput =
+    typeof req.body?.companyCode === "string"
+      ? normalizeEmployeeLoginPart(req.body.companyCode)
+      : "";
+  const employeeId =
+    typeof req.body?.employeeId === "string"
+      ? normalizeEmployeeLoginPart(req.body.employeeId)
+      : "";
+
+  if (!companyInput || !/^EMP-[A-Z2-9]{6}$/.test(employeeId)) {
+    res.status(400).json({ error: "Bitte Firmen-Code oder Firmenname und Mitarbeiter-ID prüfen." });
+    return;
+  }
+
+  const matches = await db
+    .select({ employee: employees, company: companies })
+    .from(employees)
+    .innerJoin(companies, eq(companies.id, employees.companyId))
+    .where(
+      and(
+        eq(employees.employeeId, employeeId),
+        eq(employees.isActive, true),
+        eq(employees.status, "active"),
+        inArray(employees.role, ["manager", "employee"]),
+        sql`(
+          upper(${companies.companyCode}) = ${companyInput}
+          OR upper(${companies.name}) = ${companyInput}
+        )`,
+      ),
+    )
+    .limit(2);
+
+  if (matches.length !== 1) {
+    res.status(404).json({ error: "Keine passenden Zugangsdaten gefunden." });
+    return;
+  }
+
+  const match = matches[0];
+  const username = employeeLoginIdentifier(match.company.companyCode, match.employee.employeeId);
+  const clerkUser = await clerkClient.users.getUser(match.employee.userId);
+
+  if (!isManagedEmployeeAccount(clerkUser)) {
+    res.status(404).json({ error: "Keine passenden Zugangsdaten gefunden." });
+    return;
+  }
+
+  if (clerkUser.username !== username) {
+    await clerkClient.users.updateUser(match.employee.userId, { username });
+  }
+  const identifier = clerkUser.primaryEmailAddress?.emailAddress;
+  if (!identifier) {
+    res.status(404).json({ error: "Keine passenden Zugangsdaten gefunden." });
+    return;
+  }
+
+  res.json({ identifier });
+});
+
 router.use(requireAuth);
 
 router.post("/timeapp/onboarding/company", async (req, res) => {
@@ -546,7 +609,7 @@ router.post("/timeapp/company/members", requireRoles("owner", "manager"), async 
     return;
   }
   const employeeId = await uniqueEmployeeCode();
-  const loginName = `${membership.company.companyCode}-${employeeId}`;
+  const loginName = employeeLoginIdentifier(membership.company.companyCode, employeeId);
   const temporaryPassword = randomPassword();
   const { firstName, lastName } = splitName(displayName);
   let clerkUser: Awaited<ReturnType<typeof clerkClient.users.createUser>> | undefined;

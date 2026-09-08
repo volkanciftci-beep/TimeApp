@@ -9,6 +9,20 @@ import * as zod from 'zod';
 
 
 /**
+ * Validates a company name or company code with an employee ID and returns the linked Clerk login identifier.
+ * @summary Resolve an employee or manager login identifier
+ */
+export const ResolveTimeAppEmployeeIdentifierBody = zod.object({
+  "companyCode": zod.string(),
+  "employeeId": zod.string()
+})
+
+export const ResolveTimeAppEmployeeIdentifierResponse = zod.object({
+  "identifier": zod.string()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
