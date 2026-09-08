@@ -19,6 +19,10 @@ import {
   employeeLoginIdentifier,
   normalizeEmployeeLoginPart,
 } from "../employeeLogin";
+import {
+  canResetManagedEmployeePassword,
+  createTemporaryPassword,
+} from "../managedEmployeePassword";
 
 const router = Router();
 const TIME_ZONE = "Europe/Berlin";
@@ -311,10 +315,6 @@ function randomCode(prefix: string, length = 6) {
     value += alphabet[Math.floor(Math.random() * alphabet.length)];
   }
   return value;
-}
-
-function randomPassword() {
-  return `Zeit-${randomCode("", 12)}!`;
 }
 
 function splitName(displayName: string) {
@@ -610,7 +610,7 @@ router.post("/timeapp/company/members", requireRoles("owner", "manager"), async 
   }
   const employeeId = await uniqueEmployeeCode();
   const loginName = employeeLoginIdentifier(membership.company.companyCode, employeeId);
-  const temporaryPassword = randomPassword();
+  const temporaryPassword = createTemporaryPassword();
   const { firstName, lastName } = splitName(displayName);
   let clerkUser: Awaited<ReturnType<typeof clerkClient.users.createUser>> | undefined;
   try {
@@ -639,6 +639,47 @@ router.post("/timeapp/company/members", requireRoles("owner", "manager"), async 
     if (clerkUser) await clerkClient.users.deleteUser(clerkUser.id).catch(() => undefined);
     throw error;
   }
+});
+
+router.post("/timeapp/company/members/:userId/temporary-password", requireRoles("owner", "manager"), async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) {
+    res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+    return;
+  }
+  const userId = String(req.params.userId);
+  const target = (
+    await db
+      .select()
+      .from(employees)
+      .where(and(eq(employees.userId, userId), eq(employees.companyId, membership.company.id)))
+      .limit(1)
+  )[0];
+  if (!target) {
+    res.status(404).json({ error: "Mitarbeiter nicht gefunden." });
+    return;
+  }
+  if (
+    !canResetManagedEmployeePassword(
+      membership.employee.role as "owner" | "manager",
+      target.role,
+    )
+  ) {
+    res.status(403).json({ error: "Manager dürfen nur Passwörter von Mitarbeitenden zurücksetzen." });
+    return;
+  }
+  const clerkUser = await clerkClient.users.getUser(target.userId);
+  if (!isManagedEmployeeAccount(clerkUser)) {
+    res.status(409).json({ error: "Dieses Konto kann nicht über ZEITAPP zurückgesetzt werden." });
+    return;
+  }
+  const temporaryPassword = createTemporaryPassword();
+  await clerkClient.users.updateUser(target.userId, { password: temporaryPassword });
+  res.json({
+    member: memberResponse(target),
+    companyCode: membership.company.companyCode,
+    temporaryPassword,
+  });
 });
 
 router.patch("/timeapp/company/members/:userId/status", requireRoles("owner", "manager"), async (req, res) => {

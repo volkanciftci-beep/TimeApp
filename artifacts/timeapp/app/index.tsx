@@ -18,6 +18,7 @@ import {
   useGetTimeAppCompanyReports,
   useGetTimeAppHistory,
   useGetTimeAppMe,
+  useResetTimeAppCompanyMemberTemporaryPassword,
   useStartTimeAppBreak,
   useStartTimeAppWork,
   useStopTimeAppBreak,
@@ -749,6 +750,7 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
   const reports = useGetTimeAppCompanyReports({ period: 'week' }, { query: { queryKey: getGetTimeAppCompanyReportsQueryKey({ period: 'week' }) } });
   const plans = useGetTimeAppBillingPlans({ query: { queryKey: getGetTimeAppBillingPlansQueryKey(), enabled: role === 'owner' } });
   const createMember = useCreateTimeAppCompanyMember();
+  const resetTemporaryPassword = useResetTimeAppCompanyMemberTemporaryPassword();
   const updateMember = useUpdateTimeAppCompanyMemberStatus();
   const deleteMember = useDeleteTimeAppCompanyMember();
   const checkout = useCreateTimeAppBillingCheckout();
@@ -810,6 +812,31 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
     });
   };
   const billingPending = checkout.isPending || portal.isPending;
+  const showCredentials = (result: { companyCode: string; member: { employeeId: string }; temporaryPassword: string }) => {
+    Alert.alert(
+      'Temporäre Zugangsdaten',
+      `Firmen-Code: ${result.companyCode}\nMitarbeiter-ID: ${result.member.employeeId}\nTemporary password: ${result.temporaryPassword}\n\nDieses Passwort wird nur jetzt angezeigt.`,
+    );
+  };
+  const resetPassword = (member: { userId: string; displayName: string }) => {
+    Alert.alert(
+      'Temporäres Passwort zurücksetzen?',
+      `Für ${member.displayName} wird ein neues temporäres Passwort erstellt. Das bisherige Passwort funktioniert danach nicht mehr.`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Zurücksetzen',
+          onPress: () => resetTemporaryPassword.mutate(
+            { userId: member.userId },
+            {
+              onSuccess: showCredentials,
+              onError: () => Alert.alert('Nicht möglich', 'Das temporäre Passwort konnte nicht zurückgesetzt werden.'),
+            },
+          ),
+        },
+      ],
+    );
+  };
   return <View style={styles.adminWrap}>
     {hasTeamAccess ? <View style={[styles.hoursCard, { backgroundColor: colors.surface, marginHorizontal: 0 }]}>
       <Text style={[styles.cardEyebrow, { color: colors.primary }]}>VERWALTUNG</Text>
@@ -819,6 +846,7 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
       {(members.data?.members ?? []).map((member) => <View key={member.userId} style={styles.memberRow}>
         <View style={styles.memberCopy}><Text style={[styles.historyDate, { color: colors.foreground }]}>{member.displayName}</Text><Text style={[styles.metaText, { color: colors.mutedForeground }]}>{member.employeeId} · {member.role} · {member.status}</Text></View>
         {member.role !== 'owner' ? <View style={styles.memberActions}>
+          {(role === 'owner' || member.role === 'employee') ? <Pressable accessibilityRole="button" accessibilityLabel={`Temporäres Passwort für ${member.displayName} zurücksetzen`} disabled={resetTemporaryPassword.isPending} onPress={() => resetPassword(member)}><Feather name="key" size={18} color={colors.primary} /></Pressable> : null}
           <Pressable onPress={() => updateMember.mutate({ userId: member.userId, data: { active: member.status !== 'active' } }, { onSuccess: refresh })}><Feather name={member.status === 'active' ? 'pause-circle' : 'play-circle'} size={19} color={colors.primary} /></Pressable>
           <Pressable onPress={() => Alert.alert('Mitglied löschen?', `${member.displayName} und alle Zeitdaten werden gelöscht.`, [{ text: 'Abbrechen', style: 'cancel' }, { text: 'Löschen', style: 'destructive', onPress: () => deleteMember.mutate({ userId: member.userId }, { onSuccess: refresh }) }])}><Feather name="trash-2" size={18} color={colors.danger} /></Pressable>
         </View> : null}
@@ -829,7 +857,7 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
       {role === 'owner' ? <View style={styles.rolePicker}>
         {(['employee', 'manager'] as const).map((candidate) => <Pressable key={candidate} onPress={() => setNewRole(candidate)} style={[styles.roleOption, { borderColor: newRole === candidate ? colors.primary : colors.border, backgroundColor: newRole === candidate ? colors.successSoft : colors.surface }]}><Text style={[styles.metaText, { color: newRole === candidate ? colors.primary : colors.mutedForeground }]}>{candidate === 'employee' ? 'MITARBEITER' : 'MANAGER'}</Text></Pressable>)}
       </View> : null}
-      <Pressable onPress={() => createMember.mutate({ data: { displayName: name, email, role: role === 'owner' ? newRole : 'employee' } }, { onSuccess: (result) => { setName(''); setEmail(''); setNewRole('employee'); refresh(); Alert.alert('Zugang erstellt', `Firmen-Code: ${result.companyCode}\nMitarbeiter-ID: ${result.member.employeeId}\nTemporäres Passwort: ${result.temporaryPassword}`); }, onError: () => Alert.alert('Nicht möglich', 'Das Mitglied konnte nicht erstellt werden.') })} style={[styles.smallButton, { backgroundColor: colors.primary }]}><Text style={styles.loginButtonText}>MITGLIED HINZUFÜGEN</Text></Pressable>
+      <Pressable onPress={() => createMember.mutate({ data: { displayName: name, email, role: role === 'owner' ? newRole : 'employee' } }, { onSuccess: (result) => { setName(''); setEmail(''); setNewRole('employee'); refresh(); showCredentials(result); }, onError: () => Alert.alert('Nicht möglich', 'Das Mitglied konnte nicht erstellt werden.') })} style={[styles.smallButton, { backgroundColor: colors.primary }]}><Text style={styles.loginButtonText}>MITGLIED HINZUFÜGEN</Text></Pressable>
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 20 }]}>WOCHENBERICHT</Text>
       {(reports.data?.reports ?? []).map((report) => <View key={report.userId} style={styles.memberRow}><Text style={[styles.historyDate, { color: colors.foreground }]}>{report.displayName}</Text><Text style={[styles.historyDuration, { color: colors.primary }]}>{formatDuration(report.totalWorkSeconds)}</Text></View>)}
     </View> : null}

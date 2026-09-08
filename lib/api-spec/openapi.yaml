@@ -277,6 +277,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MemberResponse"
+  /timeapp/company/members/{userId}/temporary-password:
+    post:
+      operationId: resetTimeAppCompanyMemberTemporaryPassword
+      tags: [company]
+      summary: Create a new one-time temporary password for a managed member
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Temporary password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberCredentialsResponse"
   /timeapp/company/members/{userId}:
     delete:
       operationId: deleteTimeAppCompanyMember

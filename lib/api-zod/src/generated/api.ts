@@ -314,6 +314,29 @@ export const UpdateTimeAppCompanyMemberStatusResponse = zod.object({
 
 
 /**
+ * @summary Create a new one-time temporary password for a managed member
+ */
+export const ResetTimeAppCompanyMemberTemporaryPasswordParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const ResetTimeAppCompanyMemberTemporaryPasswordResponse = zod.object({
+  "member": zod.object({
+  "userId": zod.string(),
+  "employeeId": zod.string(),
+  "email": zod.string().email(),
+  "displayName": zod.string(),
+  "role": zod.enum(['owner', 'manager', 'employee']),
+  "status": zod.enum(['active', 'inactive']),
+  "hourlyRateCents": zod.number().int(),
+  "createdAt": zod.coerce.date()
+}),
+  "companyCode": zod.string(),
+  "temporaryPassword": zod.string()
+})
+
+
+/**
  * @summary Delete a member and their time records
  */
 export const DeleteTimeAppCompanyMemberParams = zod.object({

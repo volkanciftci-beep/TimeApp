@@ -1119,6 +1119,77 @@ export const useUpdateTimeAppCompanyMemberStatus = <TError = ErrorType<unknown>,
       return useMutation(getUpdateTimeAppCompanyMemberStatusMutationOptions(options));
     }
 
+export const getResetTimeAppCompanyMemberTemporaryPasswordUrl = (userId: string,) => {
+
+
+
+
+  return `/api/timeapp/company/members/${userId}/temporary-password`
+}
+
+/**
+ * @summary Create a new one-time temporary password for a managed member
+ */
+export const resetTimeAppCompanyMemberTemporaryPassword = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<MemberCredentialsResponse> => {
+
+  return customFetch<MemberCredentialsResponse>(getResetTimeAppCompanyMemberTemporaryPasswordUrl(userId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetTimeAppCompanyMemberTemporaryPasswordMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>, TError,{userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>, TError,{userId: string}, TContext> => {
+
+const mutationKey = ['resetTimeAppCompanyMemberTemporaryPassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>, {userId: string}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  resetTimeAppCompanyMemberTemporaryPassword(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetTimeAppCompanyMemberTemporaryPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>>
+
+    export type ResetTimeAppCompanyMemberTemporaryPasswordMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new one-time temporary password for a managed member
+ */
+export const useResetTimeAppCompanyMemberTemporaryPassword = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>, TError,{userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>,
+        TError,
+        {userId: string},
+        TContext
+      > => {
+      return useMutation(getResetTimeAppCompanyMemberTemporaryPasswordMutationOptions(options));
+    }
+
 export const getDeleteTimeAppCompanyMemberUrl = (userId: string,) => {
 
 
