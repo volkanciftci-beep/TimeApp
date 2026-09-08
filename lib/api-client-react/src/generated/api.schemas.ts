@@ -123,6 +123,43 @@ export interface MemberResponse {
   member: CompanyMember;
 }
 
+export interface WeeklyScheduleDay {
+  /**
+     * @minimum 1
+     * @maximum 7
+     */
+  weekday: number;
+  isWorking: boolean;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  startTime: string | null;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  endTime: string | null;
+  /**
+     * @minimum 0
+     * @maximum 720
+     */
+  breakMinutes: number;
+}
+
+export interface WeeklySchedule {
+  userId: string;
+  weekStart: string;
+  /**
+     * @minItems 7
+     * @maxItems 7
+     */
+  days: WeeklyScheduleDay[];
+}
+
+export interface WeeklyScheduleUpdate {
+  weekStart: string;
+  /**
+     * @minItems 7
+     * @maxItems 7
+     */
+  days: WeeklyScheduleDay[];
+}
+
 export interface CompanyReport {
   userId: string;
   employeeId: string;
@@ -249,6 +286,8 @@ export interface ClockMutationResponse {
   clock: ClockStatus;
 }
 
+export type WeekStartParameter = string;
+
 export type GetTimeAppHistoryParams = {
 from?: string;
 to?: string;
@@ -277,4 +316,8 @@ export const GetTimeAppCompanyReportsPeriod = {
   week: 'week',
   month: 'month',
 } as const;
+
+export type GetTimeAppScheduleParams = {
+weekStart?: WeekStartParameter;
+};
 

@@ -35,6 +35,7 @@ import type {
   EmployeeLoginIdentifierResponse,
   GetTimeAppCompanyReportsParams,
   GetTimeAppHistoryParams,
+  GetTimeAppScheduleParams,
   GetTimeAppSummaryParams,
   HealthStatus,
   HistoryResponse,
@@ -42,7 +43,9 @@ import type {
   MemberResponse,
   MemberStatusRequest,
   Summary,
-  TimeAppMeResponse
+  TimeAppMeResponse,
+  WeeklySchedule,
+  WeeklyScheduleUpdate
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1145,7 +1148,7 @@ export const resetTimeAppCompanyMemberTemporaryPassword = async (userId: string,
 
 
 
-export const getResetTimeAppCompanyMemberTemporaryPasswordMutationOptions = <TError = ErrorType<unknown>,
+export const getResetTimeAppCompanyMemberTemporaryPasswordMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>, TError,{userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>, TError,{userId: string}, TContext> => {
 
@@ -1174,12 +1177,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResetTimeAppCompanyMemberTemporaryPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>>
 
-    export type ResetTimeAppCompanyMemberTemporaryPasswordMutationError = ErrorType<unknown>
+    export type ResetTimeAppCompanyMemberTemporaryPasswordMutationError = ErrorType<void>
 
     /**
  * @summary Create a new one-time temporary password for a managed member
  */
-export const useResetTimeAppCompanyMemberTemporaryPassword = <TError = ErrorType<unknown>,
+export const useResetTimeAppCompanyMemberTemporaryPassword = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>, TError,{userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof resetTimeAppCompanyMemberTemporaryPassword>>,
@@ -1344,6 +1347,239 @@ export function useGetTimeAppCompanyReports<TData = Awaited<ReturnType<typeof ge
 
 
 
+
+export const getGetTimeAppScheduleUrl = (params?: GetTimeAppScheduleParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/timeapp/schedule?${stringifiedParams}` : `/api/timeapp/schedule`
+}
+
+/**
+ * @summary Get the signed-in employee's weekly schedule
+ */
+export const getTimeAppSchedule = async (params?: GetTimeAppScheduleParams, options?: Parameters<typeof customFetch>[1]): Promise<WeeklySchedule> => {
+
+  return customFetch<WeeklySchedule>(getGetTimeAppScheduleUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppScheduleQueryKey = (params?: GetTimeAppScheduleParams,) => {
+    return [
+    `/api/timeapp/schedule`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTimeAppScheduleQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppSchedule>>, TError = ErrorType<unknown>>(params?: GetTimeAppScheduleParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppScheduleQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppSchedule>>> = ({ signal }) => getTimeAppSchedule(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppSchedule>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppScheduleQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppSchedule>>>
+export type GetTimeAppScheduleQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the signed-in employee's weekly schedule
+ */
+
+export function useGetTimeAppSchedule<TData = Awaited<ReturnType<typeof getTimeAppSchedule>>, TError = ErrorType<unknown>>(
+ params?: GetTimeAppScheduleParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppScheduleQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTimeAppCompanyMemberScheduleUrl = (userId: string,) => {
+
+
+
+
+  return `/api/timeapp/company/members/${userId}/schedule`
+}
+
+/**
+ * @summary Get a tenant member's weekly schedule
+ */
+export const getTimeAppCompanyMemberSchedule = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<WeeklySchedule> => {
+
+  return customFetch<WeeklySchedule>(getGetTimeAppCompanyMemberScheduleUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeAppCompanyMemberScheduleQueryKey = (userId: string,) => {
+    return [
+    `/api/timeapp/company/members/${userId}/schedule`
+    ] as const;
+    }
+
+
+export const getGetTimeAppCompanyMemberScheduleQueryOptions = <TData = Awaited<ReturnType<typeof getTimeAppCompanyMemberSchedule>>, TError = ErrorType<unknown>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMemberSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeAppCompanyMemberScheduleQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeAppCompanyMemberSchedule>>> = ({ signal }) => getTimeAppCompanyMemberSchedule(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMemberSchedule>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeAppCompanyMemberScheduleQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeAppCompanyMemberSchedule>>>
+export type GetTimeAppCompanyMemberScheduleQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a tenant member's weekly schedule
+ */
+
+export function useGetTimeAppCompanyMemberSchedule<TData = Awaited<ReturnType<typeof getTimeAppCompanyMemberSchedule>>, TError = ErrorType<unknown>>(
+ userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeAppCompanyMemberSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeAppCompanyMemberScheduleQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTimeAppCompanyMemberScheduleUrl = (userId: string,) => {
+
+
+
+
+  return `/api/timeapp/company/members/${userId}/schedule`
+}
+
+/**
+ * @summary Create or replace a tenant member's weekly schedule
+ */
+export const updateTimeAppCompanyMemberSchedule = async (userId: string,
+    weeklyScheduleUpdate: WeeklyScheduleUpdate, options?: Parameters<typeof customFetch>[1]): Promise<WeeklySchedule> => {
+
+  return customFetch<WeeklySchedule>(getUpdateTimeAppCompanyMemberScheduleUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(weeklyScheduleUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateTimeAppCompanyMemberScheduleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberSchedule>>, TError,{userId: string;data: BodyType<WeeklyScheduleUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberSchedule>>, TError,{userId: string;data: BodyType<WeeklyScheduleUpdate>}, TContext> => {
+
+const mutationKey = ['updateTimeAppCompanyMemberSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTimeAppCompanyMemberSchedule>>, {userId: string;data: BodyType<WeeklyScheduleUpdate>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateTimeAppCompanyMemberSchedule(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTimeAppCompanyMemberScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof updateTimeAppCompanyMemberSchedule>>>
+    export type UpdateTimeAppCompanyMemberScheduleMutationBody = BodyType<WeeklyScheduleUpdate>
+    export type UpdateTimeAppCompanyMemberScheduleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create or replace a tenant member's weekly schedule
+ */
+export const useUpdateTimeAppCompanyMemberSchedule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTimeAppCompanyMemberSchedule>>, TError,{userId: string;data: BodyType<WeeklyScheduleUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTimeAppCompanyMemberSchedule>>,
+        TError,
+        {userId: string;data: BodyType<WeeklyScheduleUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateTimeAppCompanyMemberScheduleMutationOptions(options));
+    }
 
 export const getGetTimeAppBillingPlansUrl = () => {
 

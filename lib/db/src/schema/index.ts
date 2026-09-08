@@ -2,10 +2,12 @@ import {
   boolean,
   date,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const companies = pgTable("companies", {
@@ -61,3 +63,31 @@ export const breaks = pgTable("breaks", {
   endedAt: timestamp("ended_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type WeeklyScheduleDay = {
+  weekday: number;
+  isWorking: boolean;
+  startTime: string | null;
+  endTime: string | null;
+  breakMinutes: number;
+};
+
+export const weeklySchedules = pgTable("weekly_schedules", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => employees.userId, { onDelete: "cascade" }),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id, { onDelete: "cascade" }),
+  weekStart: date("week_start").notNull(),
+  days: jsonb("days").$type<WeeklyScheduleDay[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("weekly_schedules_company_user_week_idx").on(
+    table.companyId,
+    table.userId,
+    table.weekStart,
+  ),
+]);

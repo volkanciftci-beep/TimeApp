@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { breaks, companies, employees, workSessions } from "@workspace/db/schema";
+import { breaks, companies, employees, weeklySchedules, workSessions } from "@workspace/db/schema";
 import type {
   ClockStatus,
   Company,
@@ -26,6 +26,7 @@ import {
 } from "../managedEmployeePassword";
 import { createManagedEmployeePasswordResetHandler } from "../managedEmployeePasswordReset";
 import { provisionManagedEmployee } from "../managedEmployeeProvisioning";
+import { canManageWeeklySchedule, emptyScheduleDays, normalizeWeekStart, validateScheduleDays } from "../weeklySchedule";
 
 const router = Router();
 const TIME_ZONE = "Europe/Berlin";
@@ -749,6 +750,67 @@ router.get("/timeapp/company/reports", requireRoles("owner", "manager"), async (
     });
   }
   res.json({ period, from: range.from, to: range.to, reports });
+});
+
+router.get("/timeapp/schedule", async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  const weekStart = normalizeWeekStart(req.query.weekStart);
+  const [schedule] = await db.select().from(weeklySchedules).where(and(
+    eq(weeklySchedules.companyId, membership.company.id),
+    eq(weeklySchedules.userId, membership.employee.userId),
+    eq(weeklySchedules.weekStart, weekStart),
+  )).limit(1);
+  res.json({ userId: membership.employee.userId, weekStart, days: schedule?.days ?? emptyScheduleDays() });
+});
+
+router.get("/timeapp/company/members/:userId/schedule", requireRoles("owner", "manager"), async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  const targetUserId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const [target] = await db.select().from(employees).where(and(
+    eq(employees.companyId, membership.company.id),
+    eq(employees.userId, targetUserId),
+  )).limit(1);
+  if (!target || !canManageWeeklySchedule(membership.employee.role, target.role)) {
+    return void res.status(404).json({ error: "Mitarbeiter nicht gefunden." });
+  }
+  const weekStart = normalizeWeekStart(req.query.weekStart);
+  const [schedule] = await db.select().from(weeklySchedules).where(and(
+    eq(weeklySchedules.companyId, membership.company.id),
+    eq(weeklySchedules.userId, target.userId),
+    eq(weeklySchedules.weekStart, weekStart),
+  )).limit(1);
+  res.json({ userId: target.userId, weekStart, days: schedule?.days ?? emptyScheduleDays() });
+});
+
+router.put("/timeapp/company/members/:userId/schedule", requireRoles("owner", "manager"), async (req, res) => {
+  const membership = await membershipFromRequest(req);
+  if (!membership) return void res.status(403).json({ error: "Kein Firmenkonto gefunden." });
+  const targetUserId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const [target] = await db.select().from(employees).where(and(
+    eq(employees.companyId, membership.company.id),
+    eq(employees.userId, targetUserId),
+  )).limit(1);
+  if (!target || !canManageWeeklySchedule(membership.employee.role, target.role)) {
+    return void res.status(404).json({ error: "Mitarbeiter nicht gefunden." });
+  }
+  try {
+    const weekStart = normalizeWeekStart(req.body?.weekStart);
+    const days = validateScheduleDays(req.body?.days);
+    const [schedule] = await db.insert(weeklySchedules).values({
+      companyId: membership.company.id,
+      userId: target.userId,
+      weekStart,
+      days,
+    }).onConflictDoUpdate({
+      target: [weeklySchedules.companyId, weeklySchedules.userId, weeklySchedules.weekStart],
+      set: { days, updatedAt: new Date() },
+    }).returning();
+    res.json({ userId: schedule.userId, weekStart: schedule.weekStart, days: schedule.days });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Wochenplan." });
+  }
 });
 
 router.get("/timeapp/billing/plans", requireRoles("owner"), async (_req, res) => {

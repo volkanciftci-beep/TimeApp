@@ -374,6 +374,125 @@ export const GetTimeAppCompanyReportsResponse = zod.object({
 
 
 /**
+ * @summary Get the signed-in employee's weekly schedule
+ */
+export const GetTimeAppScheduleQueryParams = zod.object({
+  "weekStart": zod.date().optional()
+})
+
+export const getTimeAppScheduleResponseDaysItemWeekdayMax = 7;
+
+export const getTimeAppScheduleResponseDaysItemStartTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getTimeAppScheduleResponseDaysItemEndTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getTimeAppScheduleResponseDaysItemBreakMinutesMin = 0;
+export const getTimeAppScheduleResponseDaysItemBreakMinutesMax = 720;
+
+export const getTimeAppScheduleResponseDaysMin = 7;
+export const getTimeAppScheduleResponseDaysMax = 7;
+
+
+
+export const GetTimeAppScheduleResponse = zod.object({
+  "userId": zod.string(),
+  "weekStart": zod.coerce.date(),
+  "days": zod.array(zod.object({
+  "weekday": zod.number().int().min(1).max(getTimeAppScheduleResponseDaysItemWeekdayMax),
+  "isWorking": zod.boolean(),
+  "startTime": zod.string().regex(getTimeAppScheduleResponseDaysItemStartTimeRegExp).nullable(),
+  "endTime": zod.string().regex(getTimeAppScheduleResponseDaysItemEndTimeRegExp).nullable(),
+  "breakMinutes": zod.number().int().min(getTimeAppScheduleResponseDaysItemBreakMinutesMin).max(getTimeAppScheduleResponseDaysItemBreakMinutesMax)
+})).min(getTimeAppScheduleResponseDaysMin).max(getTimeAppScheduleResponseDaysMax)
+})
+
+
+/**
+ * @summary Get a tenant member's weekly schedule
+ */
+export const GetTimeAppCompanyMemberScheduleParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const getTimeAppCompanyMemberScheduleResponseDaysItemWeekdayMax = 7;
+
+export const getTimeAppCompanyMemberScheduleResponseDaysItemStartTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getTimeAppCompanyMemberScheduleResponseDaysItemEndTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin = 0;
+export const getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax = 720;
+
+export const getTimeAppCompanyMemberScheduleResponseDaysMin = 7;
+export const getTimeAppCompanyMemberScheduleResponseDaysMax = 7;
+
+
+
+export const GetTimeAppCompanyMemberScheduleResponse = zod.object({
+  "userId": zod.string(),
+  "weekStart": zod.coerce.date(),
+  "days": zod.array(zod.object({
+  "weekday": zod.number().int().min(1).max(getTimeAppCompanyMemberScheduleResponseDaysItemWeekdayMax),
+  "isWorking": zod.boolean(),
+  "startTime": zod.string().regex(getTimeAppCompanyMemberScheduleResponseDaysItemStartTimeRegExp).nullable(),
+  "endTime": zod.string().regex(getTimeAppCompanyMemberScheduleResponseDaysItemEndTimeRegExp).nullable(),
+  "breakMinutes": zod.number().int().min(getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin).max(getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax)
+})).min(getTimeAppCompanyMemberScheduleResponseDaysMin).max(getTimeAppCompanyMemberScheduleResponseDaysMax)
+})
+
+
+/**
+ * @summary Create or replace a tenant member's weekly schedule
+ */
+export const UpdateTimeAppCompanyMemberScheduleParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const updateTimeAppCompanyMemberScheduleBodyDaysItemWeekdayMax = 7;
+
+export const updateTimeAppCompanyMemberScheduleBodyDaysItemStartTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateTimeAppCompanyMemberScheduleBodyDaysItemEndTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateTimeAppCompanyMemberScheduleBodyDaysItemBreakMinutesMin = 0;
+export const updateTimeAppCompanyMemberScheduleBodyDaysItemBreakMinutesMax = 720;
+
+export const updateTimeAppCompanyMemberScheduleBodyDaysMin = 7;
+export const updateTimeAppCompanyMemberScheduleBodyDaysMax = 7;
+
+
+
+export const UpdateTimeAppCompanyMemberScheduleBody = zod.object({
+  "weekStart": zod.coerce.date(),
+  "days": zod.array(zod.object({
+  "weekday": zod.number().int().min(1).max(updateTimeAppCompanyMemberScheduleBodyDaysItemWeekdayMax),
+  "isWorking": zod.boolean(),
+  "startTime": zod.string().regex(updateTimeAppCompanyMemberScheduleBodyDaysItemStartTimeRegExp).nullable(),
+  "endTime": zod.string().regex(updateTimeAppCompanyMemberScheduleBodyDaysItemEndTimeRegExp).nullable(),
+  "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberScheduleBodyDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberScheduleBodyDaysItemBreakMinutesMax)
+})).min(updateTimeAppCompanyMemberScheduleBodyDaysMin).max(updateTimeAppCompanyMemberScheduleBodyDaysMax)
+})
+
+export const updateTimeAppCompanyMemberScheduleResponseDaysItemWeekdayMax = 7;
+
+export const updateTimeAppCompanyMemberScheduleResponseDaysItemStartTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateTimeAppCompanyMemberScheduleResponseDaysItemEndTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin = 0;
+export const updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax = 720;
+
+export const updateTimeAppCompanyMemberScheduleResponseDaysMin = 7;
+export const updateTimeAppCompanyMemberScheduleResponseDaysMax = 7;
+
+
+
+export const UpdateTimeAppCompanyMemberScheduleResponse = zod.object({
+  "userId": zod.string(),
+  "weekStart": zod.coerce.date(),
+  "days": zod.array(zod.object({
+  "weekday": zod.number().int().min(1).max(updateTimeAppCompanyMemberScheduleResponseDaysItemWeekdayMax),
+  "isWorking": zod.boolean(),
+  "startTime": zod.string().regex(updateTimeAppCompanyMemberScheduleResponseDaysItemStartTimeRegExp).nullable(),
+  "endTime": zod.string().regex(updateTimeAppCompanyMemberScheduleResponseDaysItemEndTimeRegExp).nullable(),
+  "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax)
+})).min(updateTimeAppCompanyMemberScheduleResponseDaysMin).max(updateTimeAppCompanyMemberScheduleResponseDaysMax)
+})
+
+
+/**
  * @summary List active recurring Stripe plans
  */
 export const GetTimeAppBillingPlansResponse = zod.object({

@@ -341,6 +341,59 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CompanyReportsResponse"
+  /timeapp/schedule:
+    get:
+      operationId: getTimeAppSchedule
+      tags: [schedule]
+      summary: Get the signed-in employee's weekly schedule
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WeekStart"
+      responses:
+        "200":
+          description: Personal weekly schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklySchedule"
+  /timeapp/company/members/{userId}/schedule:
+    get:
+      operationId: getTimeAppCompanyMemberSchedule
+      tags: [schedule]
+      summary: Get a tenant member's weekly schedule
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Member weekly schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklySchedule"
+    put:
+      operationId: updateTimeAppCompanyMemberSchedule
+      tags: [schedule]
+      summary: Create or replace a tenant member's weekly schedule
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WeeklyScheduleUpdate"
+      responses:
+        "200":
+          description: Saved weekly schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklySchedule"
   /timeapp/billing/plans:
     get:
       operationId: getTimeAppBillingPlans
@@ -396,6 +449,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/BillingUrlResponse"
 components:
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    WeekStart:
+      name: weekStart
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
   securitySchemes:
     bearerAuth:
       type: http
@@ -553,6 +620,56 @@ components:
         member:
           $ref: "#/components/schemas/CompanyMember"
       required: [member]
+    WeeklyScheduleDay:
+      type: object
+      properties:
+        weekday:
+          type: integer
+          minimum: 1
+          maximum: 7
+        isWorking:
+          type: boolean
+        startTime:
+          type: string
+          nullable: true
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        endTime:
+          type: string
+          nullable: true
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        breakMinutes:
+          type: integer
+          minimum: 0
+          maximum: 720
+      required: [weekday, isWorking, startTime, endTime, breakMinutes]
+    WeeklySchedule:
+      type: object
+      properties:
+        userId:
+          type: string
+        weekStart:
+          type: string
+          format: date
+        days:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            $ref: "#/components/schemas/WeeklyScheduleDay"
+      required: [userId, weekStart, days]
+    WeeklyScheduleUpdate:
+      type: object
+      properties:
+        weekStart:
+          type: string
+          format: date
+        days:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            $ref: "#/components/schemas/WeeklyScheduleDay"
+      required: [weekStart, days]
     CompanyReport:
       type: object
       properties:

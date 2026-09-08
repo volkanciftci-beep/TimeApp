@@ -3,6 +3,8 @@ import * as Haptics from 'expo-haptics';
 import { useAuth, useClerk, useSignIn, useSignUp, useUser } from '@clerk/expo';
 import {
   getGetTimeAppHistoryQueryKey,
+  getGetTimeAppCompanyMemberScheduleQueryKey,
+  getGetTimeAppScheduleQueryKey,
   getGetTimeAppMeQueryKey,
   getGetTimeAppCompanyMembersQueryKey,
   getGetTimeAppCompanyReportsQueryKey,
@@ -17,6 +19,8 @@ import {
   useGetTimeAppCompanyMembers,
   useGetTimeAppCompanyReports,
   useGetTimeAppHistory,
+  useGetTimeAppSchedule,
+  useGetTimeAppCompanyMemberSchedule,
   useGetTimeAppMe,
   useResetTimeAppCompanyMemberTemporaryPassword,
   useStartTimeAppBreak,
@@ -24,6 +28,7 @@ import {
   useStopTimeAppBreak,
   useStopTimeAppWork,
   useUpdateTimeAppCompanyMemberStatus,
+  useUpdateTimeAppCompanyMemberSchedule,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -45,6 +50,23 @@ import { billingActionForSubscription } from '@/lib/billingAction';
 import { validatePasswordChange } from '@/lib/passwordChange';
 
 type Palette = ReturnType<typeof useColors>;
+type ScheduleDayForm = {
+  weekday: number;
+  isWorking: boolean;
+  startTime: string | null;
+  endTime: string | null;
+  breakMinutes: number;
+};
+const WEEKDAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+
+function weekTitle(weekStart?: string | Date) {
+  if (!weekStart) return 'Aktuelle Kalenderwoche';
+  const start = new Date(weekStart);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const format = (date: Date) => new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(date);
+  return `${format(start)} – ${format(end)}`;
+}
 
 function formatTime(date: Date) {
   return new Intl.DateTimeFormat('de-DE', {
@@ -703,6 +725,7 @@ function DashboardScreen({
           ) : null}
         </View>
 
+        {role !== 'owner' ? <WeeklyScheduleViewer colors={colors} /> : null}
         {role !== 'owner' ? <PasswordChangePanel colors={colors} /> : null}
 
         <View style={styles.footerNote}>
@@ -716,6 +739,96 @@ function DashboardScreen({
       </KeyboardAwareScrollViewCompat>
     </View>
   );
+}
+
+function ScheduleDays({ days, colors, editable, onChange }: {
+  days: ScheduleDayForm[];
+  colors: Palette;
+  editable?: boolean;
+  onChange?: (days: ScheduleDayForm[]) => void;
+}) {
+  const changeDay = (index: number, patch: Partial<ScheduleDayForm>) => {
+    onChange?.(days.map((day, current) => current === index ? { ...day, ...patch } : day));
+  };
+  return <View style={styles.scheduleDays}>
+    {days.map((day, index) => <View key={day.weekday} style={[styles.scheduleDay, { borderColor: colors.border }]}>
+      <View style={styles.scheduleDayTop}>
+        <Text style={[styles.historyDate, { color: colors.foreground }]}>{WEEKDAYS[index]}</Text>
+        {editable ? <Pressable
+          onPress={() => changeDay(index, day.isWorking
+            ? { isWorking: false, startTime: null, endTime: null, breakMinutes: 0 }
+            : { isWorking: true, startTime: '08:00', endTime: '16:30', breakMinutes: 30 })}
+          style={[styles.scheduleToggle, { backgroundColor: day.isWorking ? colors.successSoft : colors.surfaceAlt }]}
+        ><Text style={[styles.metaText, { color: day.isWorking ? colors.primary : colors.mutedForeground }]}>{day.isWorking ? 'ARBEIT' : 'FREI'}</Text></Pressable>
+          : <Text style={[styles.scheduleStatus, { color: day.isWorking ? colors.success : colors.mutedForeground }]}>{day.isWorking ? 'Arbeit' : 'Frei'}</Text>}
+      </View>
+      {day.isWorking ? editable ? <View style={styles.scheduleInputs}>
+        <TextInput value={day.startTime ?? ''} onChangeText={(value) => changeDay(index, { startTime: value })} placeholder="08:00" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
+        <Text style={{ color: colors.mutedForeground }}>–</Text>
+        <TextInput value={day.endTime ?? ''} onChangeText={(value) => changeDay(index, { endTime: value })} placeholder="16:30" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
+        <TextInput value={String(day.breakMinutes)} onChangeText={(value) => changeDay(index, { breakMinutes: Number(value.replace(/\D/g, '')) || 0 })} keyboardType="number-pad" placeholder="30" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleBreakInput, { borderColor: colors.border, color: colors.foreground }]} />
+        <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Min. Pause</Text>
+      </View> : <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{day.startTime} – {day.endTime}{day.breakMinutes ? ` · ${day.breakMinutes} Min. Pause` : ''}</Text> : null}
+    </View>)}
+  </View>;
+}
+
+function WeeklyScheduleViewer({ colors }: { colors: Palette }) {
+  const schedule = useGetTimeAppSchedule(undefined, { query: { queryKey: getGetTimeAppScheduleQueryKey(), refetchInterval: 10_000, refetchOnWindowFocus: true } });
+  return <View style={[styles.hoursCard, { backgroundColor: colors.surface }]}>
+    <View style={styles.hoursCardHeader}>
+      <View><Text style={[styles.cardEyebrow, { color: colors.primary }]}>WOCHENPLAN</Text><Text style={[styles.hoursTitle, { color: colors.foreground }]}>{weekTitle(schedule.data?.weekStart)}</Text></View>
+      <Feather name="calendar" size={22} color={colors.primary} />
+    </View>
+    {schedule.isError ? <Text style={[styles.inlineError, { color: colors.danger }]}>Der Wochenplan konnte nicht geladen werden.</Text>
+      : schedule.data ? <ScheduleDays days={schedule.data.days as ScheduleDayForm[]} colors={colors} />
+        : <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Wochenplan wird geladen …</Text>}
+  </View>;
+}
+
+function WeeklyScheduleEditor({ role, members, colors }: {
+  role: 'owner' | 'manager';
+  members: Array<{ userId: string; displayName: string; role: string }>;
+  colors: Palette;
+}) {
+  const eligible = members.filter((member) => member.role !== 'owner' && (role === 'owner' || member.role === 'employee'));
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [days, setDays] = useState<ScheduleDayForm[]>([]);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!eligible.some((member) => member.userId === selectedUserId)) setSelectedUserId(eligible[0]?.userId ?? '');
+  }, [eligible, selectedUserId]);
+  const schedule = useGetTimeAppCompanyMemberSchedule(selectedUserId, { query: { queryKey: getGetTimeAppCompanyMemberScheduleQueryKey(selectedUserId), enabled: Boolean(selectedUserId) } });
+  const update = useUpdateTimeAppCompanyMemberSchedule();
+  useEffect(() => {
+    if (schedule.data) setDays(schedule.data.days as ScheduleDayForm[]);
+  }, [schedule.data]);
+  const save = () => {
+    if (!selectedUserId || !schedule.data) return;
+    update.mutate({ userId: selectedUserId, data: { weekStart: schedule.data.weekStart, days } }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getGetTimeAppCompanyMemberScheduleQueryKey(selectedUserId) });
+        Alert.alert('Wochenplan gespeichert', 'Der Mitarbeiter sieht die Änderung automatisch.');
+      },
+      onError: (error) => {
+        const apiError = (error as { data?: { error?: string } })?.data?.error;
+        Alert.alert('Nicht möglich', apiError ?? 'Der Wochenplan konnte nicht gespeichert werden.');
+      },
+    });
+  };
+  return <View style={[styles.scheduleEditor, { borderColor: colors.border }]}>
+    <Text style={[styles.metaText, { color: colors.mutedForeground }]}>MITARBEITER AUSWÄHLEN</Text>
+    <View style={styles.scheduleMemberPicker}>
+      {eligible.map((member) => <Pressable key={member.userId} onPress={() => setSelectedUserId(member.userId)} style={[styles.scheduleMemberOption, { borderColor: selectedUserId === member.userId ? colors.primary : colors.border, backgroundColor: selectedUserId === member.userId ? colors.successSoft : colors.surface }]}>
+        <Text style={[styles.metaText, { color: selectedUserId === member.userId ? colors.primary : colors.mutedForeground }]}>{member.displayName}</Text>
+      </Pressable>)}
+    </View>
+    {schedule.data && days.length === 7 ? <>
+      <Text style={[styles.hoursTitle, { color: colors.foreground, marginTop: 14 }]}>{weekTitle(schedule.data.weekStart)}</Text>
+      <ScheduleDays days={days} colors={colors} editable onChange={setDays} />
+      <Pressable disabled={update.isPending} onPress={save} style={[styles.smallButton, { backgroundColor: colors.primary, opacity: update.isPending ? 0.6 : 1 }]}><Text style={styles.loginButtonText}>{update.isPending ? 'WIRD GESPEICHERT …' : 'WOCHENPLAN SPEICHERN'}</Text></Pressable>
+    </> : <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 12 }]}>{eligible.length ? 'Wochenplan wird geladen …' : 'Keine verwaltbaren Mitarbeiter vorhanden.'}</Text>}
+  </View>;
 }
 
 function clerkPasswordError(error: unknown) {
@@ -983,6 +1096,8 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
           <Pressable onPress={() => Alert.alert('Mitglied löschen?', `${member.displayName} und alle Zeitdaten werden gelöscht.`, [{ text: 'Abbrechen', style: 'cancel' }, { text: 'Löschen', style: 'destructive', onPress: () => deleteMember.mutate({ userId: member.userId }, { onSuccess: refresh }) }])}><Feather name="trash-2" size={18} color={colors.danger} /></Pressable>
         </View> : null}
       </View>)}
+      <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>WOCHENPLAN</Text>
+      <WeeklyScheduleEditor role={role} members={members.data?.members ?? []} colors={colors} />
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>MITGLIED HINZUFÜGEN</Text>
       <TextInput style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} placeholder="Name" placeholderTextColor={colors.mutedForeground} value={name} onChangeText={setName} />
       <TextInput style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} placeholder="E-Mail-Adresse" placeholderTextColor={colors.mutedForeground} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
@@ -1383,6 +1498,68 @@ const styles = StyleSheet.create({
     flex: 2,
     justifyContent: 'center',
     paddingVertical: 13,
+  },
+  scheduleEditor: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+  },
+  scheduleMemberPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 8,
+  },
+  scheduleMemberOption: {
+    borderWidth: 1,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  scheduleDays: {
+    marginTop: 10,
+  },
+  scheduleDay: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 9,
+  },
+  scheduleDayTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  scheduleToggle: {
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  scheduleStatus: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  scheduleInputs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  scheduleInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    width: 62,
+  },
+  scheduleBreakInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    width: 48,
   },
   statusButton: {
     width: '100%',
