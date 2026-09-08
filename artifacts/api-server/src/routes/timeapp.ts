@@ -24,6 +24,7 @@ import {
   canResetManagedEmployeePassword,
   createTemporaryPassword,
 } from "../managedEmployeePassword";
+import { createManagedEmployeePasswordResetHandler } from "../managedEmployeePasswordReset";
 
 const router = Router();
 const TIME_ZONE = "Europe/Berlin";
@@ -643,46 +644,26 @@ router.post("/timeapp/company/members", requireRoles("owner", "manager"), async 
   }
 });
 
-router.post("/timeapp/company/members/:userId/temporary-password", requireRoles("owner", "manager"), async (req, res) => {
-  const membership = await membershipFromRequest(req);
-  if (!membership) {
-    res.status(403).json({ error: "Kein Firmenkonto gefunden." });
-    return;
-  }
-  const userId = String(req.params.userId);
-  const target = (
-    await db
-      .select()
-      .from(employees)
-      .where(and(eq(employees.userId, userId), eq(employees.companyId, membership.company.id)))
-      .limit(1)
-  )[0];
-  if (!target) {
-    res.status(404).json({ error: "Mitarbeiter nicht gefunden." });
-    return;
-  }
-  if (
-    !canResetManagedEmployeePassword(
-      membership.employee.role as "owner" | "manager",
-      target.role,
-    )
-  ) {
-    res.status(403).json({ error: "Manager dürfen nur Passwörter von Mitarbeitenden zurücksetzen." });
-    return;
-  }
-  const clerkUser = await clerkClient.users.getUser(target.userId);
-  if (!isManagedEmployeeAccount(clerkUser)) {
-    res.status(409).json({ error: "Dieses Konto kann nicht über ZEITAPP zurückgesetzt werden." });
-    return;
-  }
-  const temporaryPassword = createTemporaryPassword();
-  await clerkClient.users.updateUser(target.userId, { password: temporaryPassword });
-  res.json({
-    member: memberResponse(target),
-    companyCode: membership.company.companyCode,
-    temporaryPassword,
-  });
-});
+router.post(
+  "/timeapp/company/members/:userId/temporary-password",
+  requireRoles("owner", "manager"),
+  createManagedEmployeePasswordResetHandler({
+    membershipFromRequest,
+    findTarget: async (userId, companyId) =>
+      (
+        await db
+          .select()
+          .from(employees)
+          .where(and(eq(employees.userId, userId), eq(employees.companyId, companyId)))
+          .limit(1)
+      )[0],
+    getClerkUser: (userId) => clerkClient.users.getUser(userId),
+    updateClerkPassword: (userId, password) => clerkClient.users.updateUser(userId, { password }),
+    createTemporaryPassword,
+    canResetPassword: canResetManagedEmployeePassword,
+    isManagedEmployeeAccount,
+  }),
+);
 
 router.patch("/timeapp/company/members/:userId/status", requireRoles("owner", "manager"), async (req, res) => {
   const membership = await membershipFromRequest(req);

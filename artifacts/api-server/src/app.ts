@@ -10,6 +10,7 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { serializeHttpRequest, serializeHttpResponse } from "./httpLogging";
 import { WebhookHandlers } from "./webhookHandlers";
 
 const app: Express = express();
@@ -33,18 +34,8 @@ app.use(
   pinoHttp({
     logger,
     serializers: {
-      req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
-      },
-      res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
-      },
+      req: serializeHttpRequest,
+      res: serializeHttpResponse,
     },
   }),
 );

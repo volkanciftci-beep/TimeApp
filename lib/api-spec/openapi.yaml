@@ -297,6 +297,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MemberCredentialsResponse"
+        "403":
+          description: The signed-in role cannot reset this member
+        "404":
+          description: The member does not exist in the signed-in user's company
+        "409":
+          description: The target is not a ZEITAPP-managed account
   /timeapp/company/members/{userId}:
     delete:
       operationId: deleteTimeAppCompanyMember
