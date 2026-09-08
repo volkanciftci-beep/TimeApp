@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zeitapp-pwa-v2';
+const CACHE_NAME = 'zeitapp-pwa-v3';
 const APP_SHELL = [
   './',
   './manifest.json',
@@ -19,15 +19,24 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(
+      .then(async (keys) => {
+        const oldZeitAppCaches = keys.filter(
+          (key) => key.startsWith('zeitapp-pwa-') && key !== CACHE_NAME,
+        );
+        await Promise.all(
           keys
             .filter((key) => key !== CACHE_NAME)
             .map((key) => caches.delete(key)),
-        ),
-      ),
+        );
+        await self.clients.claim();
+        if (oldZeitAppCaches.length > 0) {
+          const clients = await self.clients.matchAll({ type: 'window' });
+          await Promise.all(
+            clients.map((client) => client.navigate(client.url)),
+          );
+        }
+      }),
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -42,25 +51,26 @@ self.addEventListener('fetch', (event) => {
       fetch(event.request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./', copy));
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, copy);
+            cache.put('./', response.clone());
+          });
           return response;
         })
-        .catch(() => caches.match('./')),
+        .catch(async () => (await caches.match(event.request)) || caches.match('./')),
     );
     return;
   }
 
   event.respondWith(
-    caches.match(event.request).then(
-      (cached) =>
-        cached ||
-        fetch(event.request).then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return response;
-        }),
-    ),
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request)),
   );
 });

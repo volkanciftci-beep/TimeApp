@@ -119,7 +119,17 @@ function serveStaticFile(urlPath, res) {
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
   const content = fs.readFileSync(filePath);
-  res.writeHead(200, { 'content-type': contentType });
+  const fileName = path.basename(filePath);
+  const mustRevalidate =
+    ext === '.html' ||
+    fileName === 'service-worker.js' ||
+    fileName === 'manifest.json';
+  res.writeHead(200, {
+    'content-type': contentType,
+    'cache-control': mustRevalidate
+      ? 'no-cache, no-store, must-revalidate'
+      : 'public, max-age=31536000, immutable',
+  });
   res.end(content);
 }
 

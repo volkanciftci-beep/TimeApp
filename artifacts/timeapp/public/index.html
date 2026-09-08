@@ -68,8 +68,30 @@
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
+          var hadController = Boolean(navigator.serviceWorker.controller);
+          var reloading = false;
+          navigator.serviceWorker.addEventListener("controllerchange", function () {
+            if (hadController && !reloading) {
+              reloading = true;
+              window.location.reload();
+            }
+          });
           navigator.serviceWorker.register("./service-worker.js", {
             scope: "./",
+            updateViaCache: "none",
+          }).then(function (registration) {
+            registration.update();
+            window.setInterval(function () {
+              registration.update();
+            }, 60000);
+            document.addEventListener("visibilitychange", function () {
+              if (document.visibilityState === "visible") registration.update();
+            });
+            window.addEventListener("focus", function () {
+              registration.update();
+            });
+          }).catch(function () {
+            // Expo development previews do not serve the production service worker.
           });
         });
       }

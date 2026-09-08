@@ -43,3 +43,37 @@ test('same-origin /api/ GET requests bypass the service worker cache', () => {
 
   assert.equal(responded, false);
 });
+
+test('static assets use the network before a cached fallback', async () => {
+  const source = fs.readFileSync(path.join(__dirname, 'service-worker.js'), 'utf8');
+
+  assert.match(source, /fetch\(event\.request\)[\s\S]*\.catch\(\(\) => caches\.match\(event\.request\)\)/);
+  assert.doesNotMatch(source, /cached \|\|[\s\S]*fetch\(event\.request\)/);
+});
+
+test('the app shell reloads once when a new service worker takes control', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+
+  assert.match(source, /updateViaCache: "none"/);
+  assert.match(source, /controllerchange/);
+  assert.match(source, /window\.location\.reload\(\)/);
+  assert.match(source, /registration\.update\(\)/);
+});
+
+test('an upgrade from the old cache refreshes already-open legacy clients', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'service-worker.js'), 'utf8');
+
+  assert.match(source, /key\.startsWith\('zeitapp-pwa-'\)/);
+  assert.match(source, /self\.clients\.matchAll\(\{ type: 'window' \}\)/);
+  assert.match(source, /client\.navigate\(client\.url\)/);
+});
+
+test('production HTML and service worker files are never served from HTTP cache', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'server', 'serve.js'),
+    'utf8',
+  );
+
+  assert.match(source, /fileName === 'service-worker\.js'/);
+  assert.match(source, /'no-cache, no-store, must-revalidate'/);
+});
