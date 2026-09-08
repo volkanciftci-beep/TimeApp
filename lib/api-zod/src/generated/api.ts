@@ -401,7 +401,8 @@ export const GetTimeAppScheduleResponse = zod.object({
   "startTime": zod.string().regex(getTimeAppScheduleResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(getTimeAppScheduleResponseDaysItemEndTimeRegExp).nullable(),
   "breakMinutes": zod.number().int().min(getTimeAppScheduleResponseDaysItemBreakMinutesMin).max(getTimeAppScheduleResponseDaysItemBreakMinutesMax),
-  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day')
+  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day'),
+  "absenceType": zod.enum(['vacation', 'sick']).nullable().describe('Approved absence shown instead of working hours')
 })).min(getTimeAppScheduleResponseDaysMin).max(getTimeAppScheduleResponseDaysMax)
 })
 
@@ -416,6 +417,7 @@ export const GetTimeAppLeaveRequestsResponse = zod.object({
   "companyId": zod.number().int(),
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date(),
+  "type": zod.enum(['vacation', 'sick']),
   "description": zod.string().nullable(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "reviewedBy": zod.string().nullable(),
@@ -436,6 +438,7 @@ export const createTimeAppLeaveRequestBodyDescriptionMax = 500;
 export const CreateTimeAppLeaveRequestBody = zod.object({
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date(),
+  "type": zod.enum(['vacation', 'sick']),
   "description": zod.string().max(createTimeAppLeaveRequestBodyDescriptionMax).optional()
 })
 
@@ -446,6 +449,7 @@ export const CreateTimeAppLeaveRequestResponse = zod.object({
   "companyId": zod.number().int(),
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date(),
+  "type": zod.enum(['vacation', 'sick']),
   "description": zod.string().nullable(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "reviewedBy": zod.string().nullable(),
@@ -466,6 +470,7 @@ export const GetTimeAppCompanyLeaveRequestsResponse = zod.object({
   "companyId": zod.number().int(),
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date(),
+  "type": zod.enum(['vacation', 'sick']),
   "description": zod.string().nullable(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "reviewedBy": zod.string().nullable(),
@@ -497,6 +502,7 @@ export const ReviewTimeAppCompanyLeaveRequestResponse = zod.object({
   "companyId": zod.number().int(),
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date(),
+  "type": zod.enum(['vacation', 'sick']),
   "description": zod.string().nullable(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "reviewedBy": zod.string().nullable(),
@@ -535,7 +541,8 @@ export const GetTimeAppCompanyMemberScheduleResponse = zod.object({
   "startTime": zod.string().regex(getTimeAppCompanyMemberScheduleResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(getTimeAppCompanyMemberScheduleResponseDaysItemEndTimeRegExp).nullable(),
   "breakMinutes": zod.number().int().min(getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin).max(getTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax),
-  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day')
+  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day'),
+  "absenceType": zod.enum(['vacation', 'sick']).nullable().describe('Approved absence shown instead of working hours')
 })).min(getTimeAppCompanyMemberScheduleResponseDaysMin).max(getTimeAppCompanyMemberScheduleResponseDaysMax)
 })
 
@@ -591,7 +598,8 @@ export const UpdateTimeAppCompanyMemberScheduleResponse = zod.object({
   "startTime": zod.string().regex(updateTimeAppCompanyMemberScheduleResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(updateTimeAppCompanyMemberScheduleResponseDaysItemEndTimeRegExp).nullable(),
   "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberScheduleResponseDaysItemBreakMinutesMax),
-  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day')
+  "isVacation": zod.boolean().describe('True when an approved leave overlays this calendar day'),
+  "absenceType": zod.enum(['vacation', 'sick']).nullable().describe('Approved absence shown instead of working hours')
 })).min(updateTimeAppCompanyMemberScheduleResponseDaysMin).max(updateTimeAppCompanyMemberScheduleResponseDaysMax)
 })
 

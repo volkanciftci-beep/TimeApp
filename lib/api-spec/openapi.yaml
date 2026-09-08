@@ -717,7 +717,12 @@ components:
         isVacation:
           type: boolean
           description: True when an approved leave overlays this calendar day
-      required: [weekday, isWorking, startTime, endTime, breakMinutes, isVacation]
+        absenceType:
+          type: string
+          enum: [vacation, sick]
+          nullable: true
+          description: Approved absence shown instead of working hours
+      required: [weekday, isWorking, startTime, endTime, breakMinutes, isVacation, absenceType]
     WeeklySchedule:
       type: object
       properties:
@@ -783,6 +788,9 @@ components:
         endDate:
           type: string
           format: date
+        type:
+          type: string
+          enum: [vacation, sick]
         description:
           type: string
           nullable: true
@@ -802,7 +810,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, userId, companyId, startDate, endDate, description, status, reviewedBy, reviewedAt, createdAt, updatedAt]
+      required: [id, userId, companyId, startDate, endDate, type, description, status, reviewedBy, reviewedAt, createdAt, updatedAt]
     CompanyLeaveRequest:
       allOf:
         - $ref: "#/components/schemas/LeaveRequest"
@@ -822,10 +830,13 @@ components:
         endDate:
           type: string
           format: date
+        type:
+          type: string
+          enum: [vacation, sick]
         description:
           type: string
           maxLength: 500
-      required: [startDate, endDate]
+      required: [startDate, endDate, type]
     LeaveRequestDecision:
       type: object
       properties:

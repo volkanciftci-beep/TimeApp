@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LeaveRequestStatus } from './leaveRequestStatus';
+import type { LeaveRequestType } from './leaveRequestType';
 
 export interface LeaveRequest {
   id: number;
@@ -13,6 +14,7 @@ export interface LeaveRequest {
   companyId: number;
   startDate: Date;
   endDate: Date;
+  type: LeaveRequestType;
   description: string | null;
   status: LeaveRequestStatus;
   reviewedBy: string | null;

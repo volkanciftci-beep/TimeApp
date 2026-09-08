@@ -15,8 +15,17 @@ test("validates an employee leave request", () => {
     startDate: "2026-09-09",
     endDate: "2026-09-11",
     description: " Familienreise ",
-  }), { startDate: "2026-09-09", endDate: "2026-09-11", description: "Familienreise" });
-  assert.throws(() => validateLeaveRequest({ startDate: "2026-09-12", endDate: "2026-09-11" }), /Enddatum/);
+    type: "vacation",
+  }), { startDate: "2026-09-09", endDate: "2026-09-11", description: "Familienreise", type: "vacation" });
+  assert.throws(() => validateLeaveRequest({ startDate: "2026-09-12", endDate: "2026-09-11", type: "sick" }), /Enddatum/);
+});
+
+test("validates a sick notification", () => {
+  assert.deepEqual(validateLeaveRequest({
+    startDate: "2026-09-09",
+    endDate: "2026-09-10",
+    type: "sick",
+  }), { startDate: "2026-09-09", endDate: "2026-09-10", description: null, type: "sick" });
 });
 
 test("recognizes date conflicts including boundary days", () => {
@@ -46,6 +55,20 @@ test("approved leave replaces work hours with Urlaub in a weekly plan", () => {
   assert.deepEqual(workingDaysOnLeave(days, "2026-09-07", leaves), ["2026-09-09"]);
   const result = applyApprovedLeave(days, "2026-09-07", leaves);
   assert.equal(result[2].isVacation, true);
+  assert.equal(result[2].isWorking, false);
+  assert.equal(result[2].startTime, null);
+});
+
+test("approved sickness replaces work hours with KRANK in a weekly plan", () => {
+  const days = emptyScheduleDays();
+  days[2] = { weekday: 3, isWorking: true, startTime: "08:00", endTime: "16:00", breakMinutes: 30 };
+  const result = applyApprovedLeave(days, "2026-09-07", [{
+    startDate: "2026-09-09",
+    endDate: "2026-09-09",
+    type: "sick",
+  }]);
+  assert.equal(result[2].absenceType, "sick");
+  assert.equal(result[2].isVacation, false);
   assert.equal(result[2].isWorking, false);
   assert.equal(result[2].startTime, null);
 });

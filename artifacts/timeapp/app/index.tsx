@@ -63,6 +63,7 @@ type ScheduleDayForm = {
   endTime: string | null;
   breakMinutes: number;
   isVacation: boolean;
+  absenceType: 'vacation' | 'sick' | null;
 };
 const WEEKDAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 
@@ -773,7 +774,7 @@ function ScheduleDays({ days, colors, editable, onChange }: {
     {days.map((day, index) => <View key={day.weekday} style={[styles.scheduleDay, { borderColor: colors.border }]}>
       <View style={styles.scheduleDayTop}>
         <Text style={[styles.historyDate, { color: colors.foreground }]}>{WEEKDAYS[index]}</Text>
-        {day.isVacation ? <Text style={[styles.scheduleStatus, { color: colors.primary }]}>URLAUB</Text> : editable ? <Pressable
+        {day.absenceType ? <Text style={[styles.scheduleStatus, { color: day.absenceType === 'sick' ? colors.danger : colors.primary }]}>{day.absenceType === 'sick' ? 'KRANK' : 'URLAUB'}</Text> : editable ? <Pressable
           onPress={() => changeDay(index, day.isWorking
             ? { isWorking: false, startTime: null, endTime: null, breakMinutes: 0 }
             : { isWorking: true, startTime: '08:00', endTime: '16:30', breakMinutes: 30 })}
@@ -781,7 +782,7 @@ function ScheduleDays({ days, colors, editable, onChange }: {
         ><Text style={[styles.metaText, { color: day.isWorking ? colors.primary : colors.mutedForeground }]}>{day.isWorking ? 'ARBEIT' : 'FREI'}</Text></Pressable>
           : <Text style={[styles.scheduleStatus, { color: day.isWorking ? colors.success : colors.mutedForeground }]}>{day.isWorking ? 'Arbeit' : 'Frei'}</Text>}
       </View>
-      {day.isVacation ? <Text style={[styles.metaText, { color: colors.primary }]}>Genehmigter Urlaub · keine Arbeitszeit</Text> : day.isWorking ? editable ? <View style={styles.scheduleInputs}>
+      {day.absenceType ? <Text style={[styles.metaText, { color: day.absenceType === 'sick' ? colors.danger : colors.primary }]}>{day.absenceType === 'sick' ? 'Krankmeldung · keine Arbeitszeit' : 'Genehmigter Urlaub · keine Arbeitszeit'}</Text> : day.isWorking ? editable ? <View style={styles.scheduleInputs}>
         <TextInput value={day.startTime ?? ''} onChangeText={(value) => changeDay(index, { startTime: value })} placeholder="08:00" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
         <Text style={{ color: colors.mutedForeground }}>–</Text>
         <TextInput value={day.endTime ?? ''} onChangeText={(value) => changeDay(index, { endTime: value })} placeholder="16:30" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
@@ -797,6 +798,7 @@ function LeaveRequestPanel({ colors }: { colors: Palette }) {
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [description, setDescription] = useState('');
+  const [absenceType, setAbsenceType] = useState<'vacation' | 'sick'>('vacation');
   const queryClient = useQueryClient();
   const requests = useGetTimeAppLeaveRequests({
     query: {
@@ -807,11 +809,11 @@ function LeaveRequestPanel({ colors }: { colors: Palette }) {
   });
   const create = useCreateTimeAppLeaveRequest();
   const submit = () => {
-    create.mutate({ data: { startDate, endDate, description: description.trim() || undefined } }, {
+    create.mutate({ data: { startDate, endDate, type: absenceType, description: description.trim() || undefined } }, {
       onSuccess: () => {
         setDescription('');
         void queryClient.invalidateQueries({ queryKey: getGetTimeAppLeaveRequestsQueryKey() });
-        Alert.alert('Urlaubsantrag gesendet', 'Der Antrag wurde zur Prüfung eingereicht.');
+        Alert.alert(absenceType === 'sick' ? 'Krankmeldung gesendet' : 'Urlaubsantrag gesendet', 'Die Abwesenheit wurde zur Prüfung eingereicht.');
       },
       onError: (error) => {
         const apiError = (error as { data?: { error?: string } })?.data?.error;
@@ -821,21 +823,27 @@ function LeaveRequestPanel({ colors }: { colors: Palette }) {
   };
   return <View style={[styles.hoursCard, { backgroundColor: colors.surface }]}>
     <View style={styles.hoursCardHeader}>
-      <View><Text style={[styles.cardEyebrow, { color: colors.primary }]}>URLAUB & ABWESENHEIT</Text><Text style={[styles.hoursTitle, { color: colors.foreground }]}>Urlaub beantragen</Text></View>
+      <View><Text style={[styles.cardEyebrow, { color: colors.primary }]}>URLAUB & ABWESENHEIT</Text><Text style={[styles.hoursTitle, { color: colors.foreground }]}>{absenceType === 'sick' ? 'Krank melden' : 'Urlaub beantragen'}</Text></View>
       <Feather name="sun" size={22} color={colors.primary} />
+    </View>
+    <View style={styles.rolePicker}>
+      <Pressable onPress={() => setAbsenceType('vacation')} style={[styles.roleOption, { borderColor: absenceType === 'vacation' ? colors.primary : colors.border, backgroundColor: absenceType === 'vacation' ? colors.successSoft : colors.surface }]}><Text style={[styles.metaText, { color: absenceType === 'vacation' ? colors.primary : colors.mutedForeground }]}>URLAUB</Text></Pressable>
+      <Pressable onPress={() => setAbsenceType('sick')} style={[styles.roleOption, { borderColor: absenceType === 'sick' ? colors.danger : colors.border, backgroundColor: absenceType === 'sick' ? colors.dangerSoft : colors.surface }]}><Text style={[styles.metaText, { color: absenceType === 'sick' ? colors.danger : colors.mutedForeground }]}>KRANK MELDEN</Text></Pressable>
     </View>
     <View style={styles.leaveDateRow}>
       <View style={styles.leaveDateField}><Text style={[styles.metaText, { color: colors.mutedForeground }]}>VON</Text><TextInput {...(Platform.OS === 'web' ? { type: 'date' } as never : {})} value={startDate} onChangeText={setStartDate} placeholder="JJJJ-MM-TT" placeholderTextColor={colors.mutedForeground} style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} /></View>
       <View style={styles.leaveDateField}><Text style={[styles.metaText, { color: colors.mutedForeground }]}>BIS</Text><TextInput {...(Platform.OS === 'web' ? { type: 'date' } as never : {})} value={endDate} onChangeText={setEndDate} placeholder="JJJJ-MM-TT" placeholderTextColor={colors.mutedForeground} style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} /></View>
     </View>
     <TextInput value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Optionale Beschreibung" placeholderTextColor={colors.mutedForeground} style={[styles.leaveDescription, { borderColor: colors.border, color: colors.foreground }]} />
-    <Pressable disabled={create.isPending} onPress={submit} style={[styles.smallButton, { backgroundColor: colors.primary, opacity: create.isPending ? 0.6 : 1 }]}><Text style={styles.loginButtonText}>{create.isPending ? 'WIRD GESENDET …' : 'URLAUB BEANTRAGEN'}</Text></Pressable>
-    <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 18 }]}>MEINE ANTRÄGE</Text>
+    <Pressable disabled={create.isPending} onPress={submit} style={[styles.smallButton, { backgroundColor: absenceType === 'sick' ? colors.danger : colors.primary, opacity: create.isPending ? 0.6 : 1 }]}><Text style={styles.loginButtonText}>{create.isPending ? 'WIRD GESENDET …' : absenceType === 'sick' ? 'KRANKMELDUNG SENDEN' : 'URLAUB BEANTRAGEN'}</Text></Pressable>
+    <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 18 }]}>MEINE ABWESENHEITEN</Text>
     {(requests.data?.requests ?? []).map((request) => {
-      const status = LEAVE_STATUS[request.status];
+      const status = request.type === 'sick' && request.status === 'approved'
+        ? { label: 'Bestätigt', color: 'success' as const }
+        : LEAVE_STATUS[request.status];
       const statusColor = status.color === 'success' ? colors.success : status.color === 'danger' ? colors.danger : colors.primary;
       return <View key={request.id} style={[styles.leaveRequestRow, { borderColor: colors.border }]}>
-        <View style={styles.memberCopy}><Text style={[styles.historyDate, { color: colors.foreground }]}>{shortDate(request.startDate)} – {shortDate(request.endDate)}</Text><Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.description || 'Keine Beschreibung'}</Text></View>
+        <View style={styles.memberCopy}><Text style={[styles.historyDate, { color: colors.foreground }]}>{request.type === 'sick' ? 'KRANK' : 'URLAUB'} · {shortDate(request.startDate)} – {shortDate(request.endDate)}</Text><Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.description || 'Keine Beschreibung'}</Text></View>
         <View style={[styles.leaveStatusPill, { backgroundColor: `${statusColor}1A` }]}><Text style={[styles.metaText, { color: statusColor }]}>{status.label}</Text></View>
       </View>;
     })}
@@ -870,11 +878,11 @@ function LeaveRequestManagement({ colors }: { colors: Palette }) {
   };
   return <View style={[styles.scheduleEditor, { borderColor: colors.border }]}>
     {pending.map((request) => <View key={request.id} style={[styles.leaveAdminRow, { borderColor: colors.border }]}>
-      <Text style={[styles.historyDate, { color: colors.foreground }]}>{request.displayName}</Text>
+      <Text style={[styles.historyDate, { color: colors.foreground }]}>{request.displayName} · {request.type === 'sick' ? 'KRANK' : 'URLAUB'}</Text>
       <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.employeeId} · {shortDate(request.startDate)} – {shortDate(request.endDate)}</Text>
       {request.description ? <Text style={[styles.metaText, { color: colors.foreground, marginTop: 4 }]}>{request.description}</Text> : null}
       <View style={styles.leaveActions}>
-        <Pressable disabled={review.isPending} onPress={() => decide(request.id, 'approved')} style={[styles.leaveAction, { backgroundColor: colors.successSoft }]}><Text style={[styles.metaText, { color: colors.success }]}>GENEHMIGEN</Text></Pressable>
+        <Pressable disabled={review.isPending} onPress={() => decide(request.id, 'approved')} style={[styles.leaveAction, { backgroundColor: colors.successSoft }]}><Text style={[styles.metaText, { color: colors.success }]}>{request.type === 'sick' ? 'BESTÄTIGEN' : 'GENEHMIGEN'}</Text></Pressable>
         <Pressable disabled={review.isPending} onPress={() => decide(request.id, 'rejected')} style={[styles.leaveAction, { backgroundColor: colors.dangerSoft }]}><Text style={[styles.metaText, { color: colors.danger }]}>ABLEHNEN</Text></Pressable>
       </View>
     </View>)}
@@ -1207,7 +1215,7 @@ function ManagementPanel({ role, colors, hasActiveSubscription, hasTeamAccess }:
       </View>)}
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>WOCHENPLAN</Text>
       <WeeklyScheduleEditor role={role} members={members.data?.members ?? []} colors={colors} />
-      <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>URLAUBSANTRÄGE</Text>
+      <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>ABWESENHEITSANTRÄGE</Text>
       <LeaveRequestManagement colors={colors} />
       <Text style={[styles.metaText, { color: colors.mutedForeground, marginTop: 17 }]}>MITGLIED HINZUFÜGEN</Text>
       <TextInput style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]} placeholder="Name" placeholderTextColor={colors.mutedForeground} value={name} onChangeText={setName} />

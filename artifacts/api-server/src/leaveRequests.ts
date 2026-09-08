@@ -1,18 +1,21 @@
 import type { ScheduleDay } from "./weeklySchedule";
 
 export type LeaveStatus = "pending" | "approved" | "rejected";
-export type LeaveRange = { startDate: string; endDate: string };
+export type AbsenceType = "vacation" | "sick";
+export type LeaveRange = { startDate: string; endDate: string; type?: string };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function validateLeaveRequest(value: unknown) {
-  const input = value as { startDate?: unknown; endDate?: unknown; description?: unknown };
+  const input = value as { startDate?: unknown; endDate?: unknown; description?: unknown; type?: unknown };
   const startDate = normalizeDate(input?.startDate);
   const endDate = normalizeDate(input?.endDate);
   if (startDate > endDate) throw new Error("Das Enddatum darf nicht vor dem Startdatum liegen.");
   const description = typeof input?.description === "string" ? input.description.trim() : "";
   if (description.length > 500) throw new Error("Die Beschreibung darf höchstens 500 Zeichen enthalten.");
-  return { startDate, endDate, description: description || null };
+  const type = input?.type;
+  if (type !== "vacation" && type !== "sick") throw new Error("Bitte wählen Sie Urlaub oder Krankmeldung.");
+  return { startDate, endDate, description: description || null, type };
 }
 
 export function validateLeaveDecision(value: unknown): Exclude<LeaveStatus, "pending"> {
@@ -51,10 +54,18 @@ export function weekDate(weekStart: string, weekday: number) {
 export function applyApprovedLeave(days: ScheduleDay[], weekStart: string, leaves: LeaveRange[]) {
   return days.map((day) => {
     const date = weekDate(weekStart, day.weekday);
-    const isVacation = leaves.some((leave) => date >= leave.startDate && date <= leave.endDate);
-    return isVacation
-      ? { ...day, isVacation: true, isWorking: false, startTime: null, endTime: null, breakMinutes: 0 }
-      : { ...day, isVacation: false };
+    const absence = leaves.find((leave) => date >= leave.startDate && date <= leave.endDate);
+    return absence
+      ? {
+          ...day,
+          isVacation: absence.type !== "sick",
+          absenceType: absence.type ?? "vacation",
+          isWorking: false,
+          startTime: null,
+          endTime: null,
+          breakMinutes: 0,
+        }
+      : { ...day, isVacation: false, absenceType: null };
   });
 }
 

@@ -773,6 +773,7 @@ router.get("/timeapp/schedule", async (req, res) => {
   const approvedLeaves = await db.select({
     startDate: leaveRequests.startDate,
     endDate: leaveRequests.endDate,
+    type: leaveRequests.type,
   }).from(leaveRequests).where(and(
     eq(leaveRequests.companyId, membership.company.id),
     eq(leaveRequests.userId, membership.employee.userId),
@@ -809,6 +810,7 @@ router.get("/timeapp/company/members/:userId/schedule", requireRoles("owner", "m
   const approvedLeaves = await db.select({
     startDate: leaveRequests.startDate,
     endDate: leaveRequests.endDate,
+    type: leaveRequests.type,
   }).from(leaveRequests).where(and(
     eq(leaveRequests.companyId, membership.company.id),
     eq(leaveRequests.userId, target.userId),
@@ -842,6 +844,7 @@ router.put("/timeapp/company/members/:userId/schedule", requireRoles("owner", "m
     const approvedLeaves = await db.select({
       startDate: leaveRequests.startDate,
       endDate: leaveRequests.endDate,
+      type: leaveRequests.type,
     }).from(leaveRequests).where(and(
       eq(leaveRequests.companyId, membership.company.id),
       eq(leaveRequests.userId, target.userId),

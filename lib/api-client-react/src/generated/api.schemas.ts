@@ -123,6 +123,17 @@ export interface MemberResponse {
   member: CompanyMember;
 }
 
+/**
+ * Approved absence shown instead of working hours
+ */
+export type WeeklyScheduleDayAbsenceType = typeof WeeklyScheduleDayAbsenceType[keyof typeof WeeklyScheduleDayAbsenceType] | null;
+
+
+export const WeeklyScheduleDayAbsenceType = {
+  vacation: 'vacation',
+  sick: 'sick',
+} as const;
+
 export interface WeeklyScheduleDay {
   /**
      * @minimum 1
@@ -141,6 +152,8 @@ export interface WeeklyScheduleDay {
   breakMinutes: number;
   /** True when an approved leave overlays this calendar day */
   isVacation: boolean;
+  /** Approved absence shown instead of working hours */
+  absenceType: WeeklyScheduleDayAbsenceType;
 }
 
 export interface WeeklySchedule {
@@ -180,6 +193,14 @@ export interface WeeklyScheduleUpdate {
   days: WeeklyScheduleDayUpdate[];
 }
 
+export type LeaveRequestType = typeof LeaveRequestType[keyof typeof LeaveRequestType];
+
+
+export const LeaveRequestType = {
+  vacation: 'vacation',
+  sick: 'sick',
+} as const;
+
 export type LeaveRequestStatus = typeof LeaveRequestStatus[keyof typeof LeaveRequestStatus];
 
 
@@ -195,6 +216,7 @@ export interface LeaveRequest {
   companyId: number;
   startDate: string;
   endDate: string;
+  type: LeaveRequestType;
   description: string | null;
   status: LeaveRequestStatus;
   reviewedBy: string | null;
@@ -208,9 +230,18 @@ export type CompanyLeaveRequest = LeaveRequest & {
   employeeId: string;
 };
 
+export type LeaveRequestCreateType = typeof LeaveRequestCreateType[keyof typeof LeaveRequestCreateType];
+
+
+export const LeaveRequestCreateType = {
+  vacation: 'vacation',
+  sick: 'sick',
+} as const;
+
 export interface LeaveRequestCreate {
   startDate: string;
   endDate: string;
+  type: LeaveRequestCreateType;
   /** @maxLength 500 */
   description?: string;
 }

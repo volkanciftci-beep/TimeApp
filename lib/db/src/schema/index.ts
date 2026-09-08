@@ -103,6 +103,7 @@ export const leaveRequests = pgTable("leave_requests", {
     .references(() => companies.id, { onDelete: "cascade" }),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
+  type: text("type").notNull().default("vacation"),
   description: text("description"),
   status: text("status").notNull().default("pending"),
   reviewedBy: text("reviewed_by").references(() => employees.userId, { onDelete: "set null" }),

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { WeeklyScheduleDayAbsenceType } from './weeklyScheduleDayAbsenceType';
 
 export interface WeeklyScheduleDay {
   /**
@@ -24,4 +25,6 @@ export interface WeeklyScheduleDay {
   breakMinutes: number;
   /** True when an approved leave overlays this calendar day */
   isVacation: boolean;
+  /** Approved absence shown instead of working hours */
+  absenceType: WeeklyScheduleDayAbsenceType;
 }

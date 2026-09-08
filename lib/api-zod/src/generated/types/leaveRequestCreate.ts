@@ -5,10 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { LeaveRequestCreateType } from './leaveRequestCreateType';
 
 export interface LeaveRequestCreate {
   startDate: Date;
   endDate: Date;
+  type: LeaveRequestCreateType;
   /** @maxLength 500 */
   description?: string;
 }
