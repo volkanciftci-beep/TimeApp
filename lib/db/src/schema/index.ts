@@ -123,6 +123,7 @@ export const leaveRequests = pgTable("leave_requests", {
 export type MonthlyPlanDay = {
   date: string;
   status: "work" | "free" | "vacation" | "sick";
+  shiftType: "early" | "day" | "late" | "night" | null;
   startTime: string | null;
   endTime: string | null;
   breakMinutes: number;

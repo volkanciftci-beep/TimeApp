@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MonthlyPlanDayStatus } from './monthlyPlanDayStatus';
+import type { MonthlyPlanShiftType } from './monthlyPlanShiftType';
 
 export interface MonthlyPlanDay {
   date: Date;
   status: MonthlyPlanDayStatus;
+  shiftType: MonthlyPlanShiftType | null;
   /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
   startTime: string | null;
   /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */

@@ -38,6 +38,7 @@ import {
   applyApprovedAbsences,
   emptyMonthlyPlan,
   monthEnd,
+  normalizeStoredMonthlyPlan,
   normalizeMonthStart,
   plannedWorkMinutes,
   validateMonthlyPlanDays,
@@ -907,7 +908,7 @@ router.get("/timeapp/monthly-work-plans/:monthStart", async (req, res) => {
       lte(leaveRequests.startDate, monthEnd(monthStart)),
       gte(leaveRequests.endDate, monthStart),
     ));
-    const days = applyApprovedAbsences(plan?.days ?? emptyMonthlyPlan(monthStart), approvedAbsences);
+    const days = applyApprovedAbsences(normalizeStoredMonthlyPlan(plan?.days ?? emptyMonthlyPlan(monthStart)), approvedAbsences);
     res.json({ userId: membership.employee.userId, monthStart, days, plannedWorkMinutes: plannedWorkMinutes(days) });
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Monat." });
@@ -943,7 +944,7 @@ router.get("/timeapp/company/members/:userId/monthly-work-plans/:monthStart", re
       lte(leaveRequests.startDate, monthEnd(monthStart)),
       gte(leaveRequests.endDate, monthStart),
     ));
-    const days = applyApprovedAbsences(plan?.days ?? emptyMonthlyPlan(monthStart), approvedAbsences);
+    const days = applyApprovedAbsences(normalizeStoredMonthlyPlan(plan?.days ?? emptyMonthlyPlan(monthStart)), approvedAbsences);
     res.json({ userId: target.userId, monthStart, days, plannedWorkMinutes: plannedWorkMinutes(days) });
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Ungültiger Monat." });

@@ -485,6 +485,7 @@ export const GetTimeAppMonthlyWorkPlanResponse = zod.object({
   "days": zod.array(zod.object({
   "date": zod.coerce.date(),
   "status": zod.enum(['work', 'free', 'vacation', 'sick']),
+  "shiftType": zod.enum(['early', 'day', 'late', 'night']).nullable(),
   "startTime": zod.string().regex(getTimeAppMonthlyWorkPlanResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(getTimeAppMonthlyWorkPlanResponseDaysItemEndTimeRegExp).nullable(),
   "breakMinutes": zod.number().int().min(getTimeAppMonthlyWorkPlanResponseDaysItemBreakMinutesMin).max(getTimeAppMonthlyWorkPlanResponseDaysItemBreakMinutesMax)
@@ -519,6 +520,7 @@ export const GetTimeAppCompanyMemberMonthlyWorkPlanResponse = zod.object({
   "days": zod.array(zod.object({
   "date": zod.coerce.date(),
   "status": zod.enum(['work', 'free', 'vacation', 'sick']),
+  "shiftType": zod.enum(['early', 'day', 'late', 'night']).nullable(),
   "startTime": zod.string().regex(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemEndTimeRegExp).nullable(),
   "breakMinutes": zod.number().int().min(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMin).max(getTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMax)
@@ -549,6 +551,7 @@ export const UpdateTimeAppCompanyMemberMonthlyWorkPlanBody = zod.object({
   "days": zod.array(zod.object({
   "date": zod.coerce.date(),
   "status": zod.enum(['work', 'free', 'vacation', 'sick']),
+  "shiftType": zod.enum(['early', 'day', 'late', 'night']).nullable(),
   "startTime": zod.string().regex(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemEndTimeRegExp).nullable(),
   "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberMonthlyWorkPlanBodyDaysItemBreakMinutesMax)
@@ -573,6 +576,7 @@ export const UpdateTimeAppCompanyMemberMonthlyWorkPlanResponse = zod.object({
   "days": zod.array(zod.object({
   "date": zod.coerce.date(),
   "status": zod.enum(['work', 'free', 'vacation', 'sick']),
+  "shiftType": zod.enum(['early', 'day', 'late', 'night']).nullable(),
   "startTime": zod.string().regex(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemStartTimeRegExp).nullable(),
   "endTime": zod.string().regex(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemEndTimeRegExp).nullable(),
   "breakMinutes": zod.number().int().min(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMin).max(updateTimeAppCompanyMemberMonthlyWorkPlanResponseDaysItemBreakMinutesMax)

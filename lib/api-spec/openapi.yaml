@@ -838,6 +838,9 @@ components:
     MonthlyPlanDayStatus:
       type: string
       enum: [work, free, vacation, sick]
+    MonthlyPlanShiftType:
+      type: string
+      enum: [early, day, late, night]
     MonthlyPlanDay:
       type: object
       properties:
@@ -846,6 +849,10 @@ components:
           format: date
         status:
           $ref: "#/components/schemas/MonthlyPlanDayStatus"
+        shiftType:
+          allOf:
+            - $ref: "#/components/schemas/MonthlyPlanShiftType"
+          nullable: true
         startTime:
           type: string
           nullable: true
@@ -858,7 +865,7 @@ components:
           type: integer
           minimum: 0
           maximum: 720
-      required: [date, status, startTime, endTime, breakMinutes]
+      required: [date, status, shiftType, startTime, endTime, breakMinutes]
     MonthlyWorkPlan:
       type: object
       properties:

@@ -73,16 +73,26 @@ type ScheduleDayForm = {
 type MonthlyPlanDayForm = {
   date: string;
   status: 'work' | 'free' | 'vacation' | 'sick';
+  shiftType: 'early' | 'day' | 'late' | 'night' | null;
   startTime: string | null;
   endTime: string | null;
   breakMinutes: number;
 };
 const WEEKDAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
-const MONTHLY_STATUS = {
-  work: 'ARBEIT',
-  free: 'FREI',
-  vacation: 'URLAUB',
-  sick: 'KRANK',
+const SHIFT_OPTIONS = [
+  { key: 'early', label: 'FRÜH', status: 'work', startTime: '06:00', endTime: '14:00', breakMinutes: 30 },
+  { key: 'day', label: 'TAG', status: 'work', startTime: '08:00', endTime: '16:30', breakMinutes: 30 },
+  { key: 'late', label: 'SPÄT', status: 'work', startTime: '14:00', endTime: '22:00', breakMinutes: 30 },
+  { key: 'night', label: 'NACHT', status: 'work', startTime: '22:00', endTime: '06:00', breakMinutes: 30 },
+  { key: 'free', label: 'FREI', status: 'free', startTime: null, endTime: null, breakMinutes: 0 },
+  { key: 'vacation', label: 'URLAUB', status: 'vacation', startTime: null, endTime: null, breakMinutes: 0 },
+  { key: 'sick', label: 'KRANK', status: 'sick', startTime: null, endTime: null, breakMinutes: 0 },
+] as const;
+const SHIFT_LABEL = {
+  early: 'Frühdienst',
+  day: 'Tagschicht',
+  late: 'Spätdienst',
+  night: 'Nachtdienst',
 } as const;
 
 function currentMonthStart() {
@@ -106,7 +116,9 @@ function plannedMinutes(days: MonthlyPlanDayForm[]) {
   return days.reduce((total, day) => {
     if (day.status !== 'work' || !day.startTime || !day.endTime) return total;
     const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
-    return total + Math.max(0, minutes(day.endTime) - minutes(day.startTime) - day.breakMinutes);
+    const start = minutes(day.startTime);
+    const end = minutes(day.endTime);
+    return total + Math.max(0, (end > start ? end : end + 24 * 60) - start - day.breakMinutes);
   }, 0);
 }
 
@@ -971,9 +983,13 @@ function MonthlyPlanDays({ days, colors, editable, onChange }: {
   const update = (index: number, patch: Partial<MonthlyPlanDayForm>) => onChange?.(
     days.map((day, current) => current === index ? { ...day, ...patch } : day),
   );
-  const chooseStatus = (index: number, status: MonthlyPlanDayForm['status']) => update(index, status === 'work'
-    ? { status, startTime: '08:00', endTime: '16:30', breakMinutes: 30 }
-    : { status, startTime: null, endTime: null, breakMinutes: 0 });
+  const chooseOption = (index: number, option: typeof SHIFT_OPTIONS[number]) => update(index, {
+    status: option.status,
+    shiftType: option.status === 'work' ? option.key : null,
+    startTime: option.startTime,
+    endTime: option.endTime,
+    breakMinutes: option.breakMinutes,
+  });
   return <View style={styles.monthDays}>
     {days.map((day, index) => {
       const date = new Date(`${day.date}T12:00:00.000Z`);
@@ -982,12 +998,15 @@ function MonthlyPlanDays({ days, colors, editable, onChange }: {
         <View style={styles.monthDayHeader}>
           <Text style={[styles.monthDayDate, { color: colors.foreground }]}>{String(index + 1).padStart(2, '0')}</Text>
           <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(date)}</Text>
-          {!editable ? <Text style={[styles.monthDayStatus, { color: statusColor }]}>{MONTHLY_STATUS[day.status]}</Text> : null}
+          {!editable ? <Text style={[styles.monthDayStatus, { color: statusColor }]}>{day.status === 'work' ? SHIFT_LABEL[day.shiftType ?? 'day'].toLocaleUpperCase('de-DE') : day.status === 'free' ? 'FREI' : day.status === 'vacation' ? 'URLAUB' : 'KRANK'}</Text> : null}
         </View>
         {editable ? <View style={styles.monthStatusPicker}>
-          {(Object.keys(MONTHLY_STATUS) as MonthlyPlanDayForm['status'][]).map((status) => <Pressable key={status} onPress={() => chooseStatus(index, status)} style={[styles.monthStatusOption, { borderColor: day.status === status ? (status === 'sick' ? colors.danger : colors.primary) : colors.border, backgroundColor: day.status === status ? colors.successSoft : colors.surface }]}>
-            <Text style={[styles.monthStatusOptionText, { color: day.status === status ? (status === 'sick' ? colors.danger : colors.primary) : colors.mutedForeground }]}>{MONTHLY_STATUS[status]}</Text>
-          </Pressable>)}
+          {SHIFT_OPTIONS.map((option) => {
+            const selected = option.status === 'work' ? day.status === 'work' && day.shiftType === option.key : day.status === option.status;
+            return <Pressable key={option.key} onPress={() => chooseOption(index, option)} style={[styles.monthStatusOption, { borderColor: selected ? (option.status === 'sick' ? colors.danger : colors.primary) : colors.border, backgroundColor: selected ? colors.successSoft : colors.surface }]}>
+              <Text style={[styles.monthStatusOptionText, { color: selected ? (option.status === 'sick' ? colors.danger : colors.primary) : colors.mutedForeground }]}>{option.label}</Text>
+            </Pressable>;
+          })}
         </View> : null}
         {day.status === 'work' ? editable ? <View style={styles.scheduleInputs}>
           <TextInput value={day.startTime ?? ''} onChangeText={(value) => update(index, { startTime: value })} placeholder="08:00" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
@@ -995,7 +1014,7 @@ function MonthlyPlanDays({ days, colors, editable, onChange }: {
           <TextInput value={day.endTime ?? ''} onChangeText={(value) => update(index, { endTime: value })} placeholder="16:30" placeholderTextColor={colors.mutedForeground} style={[styles.scheduleInput, { borderColor: colors.border, color: colors.foreground }]} />
           <TextInput value={String(day.breakMinutes)} onChangeText={(value) => update(index, { breakMinutes: Number(value.replace(/\D/g, '')) || 0 })} keyboardType="number-pad" style={[styles.scheduleBreakInput, { borderColor: colors.border, color: colors.foreground }]} />
           <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Min. Pause</Text>
-        </View> : <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{day.startTime} – {day.endTime}{day.breakMinutes ? ` · ${day.breakMinutes} Min. Pause` : ''}</Text>
+        </View> : <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{SHIFT_LABEL[day.shiftType ?? 'day']} · {day.startTime} – {day.endTime}{day.breakMinutes ? ` · ${day.breakMinutes} Min. Pause` : ''}</Text>
           : <Text style={[styles.metaText, { color: statusColor }]}>{day.status === 'sick' ? 'Krankmeldung · keine Arbeitszeit' : day.status === 'vacation' ? 'Urlaub · keine Arbeitszeit' : 'Freier Tag'}</Text>}
       </View>;
     })}

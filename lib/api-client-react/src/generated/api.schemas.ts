@@ -203,9 +203,20 @@ export const MonthlyPlanDayStatus = {
   sick: 'sick',
 } as const;
 
+export type MonthlyPlanShiftType = typeof MonthlyPlanShiftType[keyof typeof MonthlyPlanShiftType];
+
+
+export const MonthlyPlanShiftType = {
+  early: 'early',
+  day: 'day',
+  late: 'late',
+  night: 'night',
+} as const;
+
 export interface MonthlyPlanDay {
   date: string;
   status: MonthlyPlanDayStatus;
+  shiftType: MonthlyPlanShiftType | null;
   /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
   startTime: string | null;
   /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */

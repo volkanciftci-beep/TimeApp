@@ -58,6 +58,7 @@ export * from './memberResponse';
 export * from './memberStatusRequest';
 export * from './monthlyPlanDay';
 export * from './monthlyPlanDayStatus';
+export * from './monthlyPlanShiftType';
 export * from './monthlyWorkPlan';
 export * from './monthlyWorkPlanUpdate';
 export * from './summary';
